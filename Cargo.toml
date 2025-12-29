@@ -7,6 +7,6 @@ license = "MIT"
 [dependencies]
 anyhow = "1.0"
 gix = "0.76"
-ratatui = "0.30"
+ratatui = { version = "0.30", features = ["crossterm_0_29"] }
 crossterm = "0.29"
 clap = "4.1"
