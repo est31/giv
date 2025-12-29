@@ -1,0 +1,66 @@
+use std::time::Duration;
+
+use anyhow::{Context, anyhow};
+use crossterm::event::KeyCode;
+use gix::{ObjectId, Repository, hash::Prefix};
+use ratatui::{
+    DefaultTerminal, Frame, crossterm::event, layout::{Constraint, Layout}, style::Stylize, text::{Line, Span, Text}, widgets::{Block, Paragraph, Wrap}
+};
+
+use super::State;
+
+impl State {
+    pub(crate) fn draw(&mut self, frame: &mut Frame) -> Result<(), std::io::Error> {
+        let area = frame.area();
+
+        // We allocate a bit more commits here than needed but this is ok
+        if self.wanted_commit_list_count != area.height as usize {
+            self.wanted_commit_list_count = area.height as usize;
+            self.invalidate_caches();
+        }
+
+        let (lines, authors, times) = self.commits_authors_times_lines()
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+
+        let [log_area, diff_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1)]).areas(area);
+
+        let [commit_area, author_area, times_area] = Layout::horizontal([Constraint::Fill(2), Constraint::Fill(1), Constraint::Fill(1)]).areas(log_area);
+
+        let paragraph = Paragraph::new(lines);
+        let block_commits = Block::bordered();
+        frame.render_widget(paragraph.block(block_commits), commit_area);
+
+        let paragraph = Paragraph::new(authors);
+        let block_author = Block::bordered();
+        frame.render_widget(paragraph.block(block_author), author_area);
+
+        let paragraph = Paragraph::new(times);
+        let block_times = Block::bordered();
+        frame.render_widget(paragraph.block(block_times), times_area);
+
+        if let Some(selected_commit) = self.get_selected_commit()
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?
+        {
+            fn line_with_kind<'a>(kind: &'a str, s: String) -> Line<'a> {
+                Line::from(vec![Span::from(kind).bold(), Span::from(s)])
+            }
+            let parents_str = selected_commit.parents.iter().map(|(_oid, oid_prefix, ttl)| format!("{oid_prefix} {ttl}"))
+                .collect::<Vec<String>>();
+            let parents_str = parents_str.join(", ");
+            let mut text = Text::from(vec![
+                line_with_kind("Author: ", selected_commit.author),
+                line_with_kind("Committer: ", selected_commit.committer),
+                line_with_kind("Parents: ", parents_str),
+                Line::from(""),
+                Line::from(selected_commit.title),
+                Line::from(""),
+            ]);
+            text.extend(Text::raw(selected_commit.msg_detail));
+            let paragraph = Paragraph::new(text)
+                .wrap(Wrap { trim: true });
+            let block_selected = Block::bordered();
+            frame.render_widget(paragraph.block(block_selected), diff_area);
+        }
+        Ok(())
+    }
+}

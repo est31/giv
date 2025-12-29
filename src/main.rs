@@ -6,23 +6,11 @@ use gix::{ObjectId, Repository, hash::Prefix};
 use ratatui::{
     DefaultTerminal, Frame, crossterm::event, layout::{Constraint, Layout}, style::Stylize, text::{Line, Span, Text}, widgets::{Block, Paragraph, Wrap}
 };
+use model::CommitShallow;
 
-struct CommitShallow {
-    id: ObjectId,
-    commit: String,
-    author: String,
-    time: String,
-}
+mod draw;
+mod model;
 
-struct CommitDetail {
-    commit: String,
-    author: String,
-    committer: String,
-    title: String,
-    msg_detail: String,
-    parents: Vec<(ObjectId, Prefix, String)>,
-    diff_parent: String,
-}
 struct State {
     repo: Repository,
     wanted_commit_list_count: usize,
@@ -44,155 +32,6 @@ impl State {
             selection_idx: None,
         };
         Ok(state)
-    }
-    fn draw(&mut self, frame: &mut Frame) -> Result<(), std::io::Error> {
-        let area = frame.area();
-
-        // We allocate a bit more commits here than needed but this is ok
-        if self.wanted_commit_list_count != area.height as usize {
-            self.wanted_commit_list_count = area.height as usize;
-            self.invalidate_caches();
-        }
-
-        let (lines, authors, times) = self.commits_authors_times_lines()
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-
-        let [log_area, diff_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1)]).areas(area);
-
-        let [commit_area, author_area, times_area] = Layout::horizontal([Constraint::Fill(2), Constraint::Fill(1), Constraint::Fill(1)]).areas(log_area);
-
-        let paragraph = Paragraph::new(lines);
-        let block_commits = Block::bordered();
-        frame.render_widget(paragraph.block(block_commits), commit_area);
-
-        let paragraph = Paragraph::new(authors);
-        let block_author = Block::bordered();
-        frame.render_widget(paragraph.block(block_author), author_area);
-
-        let paragraph = Paragraph::new(times);
-        let block_times = Block::bordered();
-        frame.render_widget(paragraph.block(block_times), times_area);
-
-        if let Some(selected_commit) = self.get_selected_commit()
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?
-        {
-            fn line_with_kind<'a>(kind: &'a str, s: String) -> Line<'a> {
-                Line::from(vec![Span::from(kind).bold(), Span::from(s)])
-            }
-            let parents_str = selected_commit.parents.iter().map(|(_oid, oid_prefix, ttl)| format!("{oid_prefix} {ttl}"))
-                .collect::<Vec<String>>();
-            let parents_str = parents_str.join(", ");
-            let mut text = Text::from(vec![
-                line_with_kind("Author: ", selected_commit.author),
-                line_with_kind("Committer: ", selected_commit.committer),
-                line_with_kind("Parents: ", parents_str),
-                Line::from(""),
-                Line::from(selected_commit.title),
-                Line::from(""),
-            ]);
-            text.extend(Text::raw(selected_commit.msg_detail));
-            let paragraph = Paragraph::new(text)
-                .wrap(Wrap { trim: true });
-            let block_selected = Block::bordered();
-            frame.render_widget(paragraph.block(block_selected), diff_area);
-        }
-        Ok(())
-    }
-    fn commits_authors_times_lines(&mut self) -> Result<(Vec<Line<'_>>, Vec<Line<'_>>, Vec<Line<'_>>), anyhow::Error> {
-        // cache the commits to display so that we don't do IO at each render iteration
-        let selection_idx = self.selection_idx;
-        let commits_shallow = self.get_or_refresh_commits_shallow()?;
-        let [mut lines, mut authors, mut times]: [Vec<_>; 3] = Default::default();
-
-        let selected_st = ratatui::style::Modifier::BOLD;
-        for (idx, cmt) in commits_shallow.iter().enumerate() {
-            if Some(idx) == selection_idx {
-                lines.push(Line::from(cmt.commit.clone()).style(selected_st));
-                authors.push(Line::from(cmt.author.clone()).style(selected_st));
-                times.push(Line::from(cmt.time.clone()).style(selected_st));
-            } else {
-            lines.push(Line::from(cmt.commit.clone()));
-            authors.push(Line::from(cmt.author.clone()));
-            times.push(Line::from(cmt.time.clone()));
-            }
-        }
-        Ok((lines, authors, times))
-    }
-    fn get_or_refresh_commits_shallow(&mut self) -> Result<&[CommitShallow], anyhow::Error> {
-        if self.commits_shallow_cached.is_none() {
-            let format_time = |time: gix::date::Time| {
-                time.format(gix::date::time::format::ISO8601)
-            };
-            let head_commit = self.repo.head_commit()?;
-            let msg = head_commit.message()?;
-            let id = head_commit.id().shorten_or_id();
-            let title = msg.title.to_string();
-            let mut res = Vec::new();
-            res.push(CommitShallow {
-                id: head_commit.id,
-                commit: format!("{} {}", id, title.trim()),
-                author: format!("{} <{}>", head_commit.author()?.name, head_commit.author()?.email).trim().to_owned(),
-                time: format_time(head_commit.time()?)?
-            });
-            let budget = self.wanted_commit_list_count;
-            let mut commit = head_commit;
-
-            for _ in 0..budget {
-                // TODO support multiple parent IDs
-                let Some(parent_id) = commit.parent_ids().next() else {
-                    // No parent left
-                    break;
-                };
-                commit = self.repo.find_commit(parent_id)?;
-                let msg = commit.message()?;
-                let id = commit.id().shorten_or_id();
-                let title = msg.title.to_string();
-                res.push(CommitShallow {
-                id: commit.id,
-                    commit: format!("{} {}", id, title.trim()),
-                    author: format!("{} <{}>", commit.author()?.name, commit.author()?.email).trim().to_owned(),
-                    time: format_time(commit.time()?)?
-                });
-            }
-            Ok(self.commits_shallow_cached.insert(res))
-        } else {
-            Ok(self.commits_shallow_cached.as_ref().unwrap())
-        }
-    }
-    fn get_selected_commit(&mut self) -> Result<Option<CommitDetail>, anyhow::Error> {
-        let Some(selection_idx) = self.selection_idx else {
-            return Ok(None);
-        };
-        let id = {
-            let selected_hash = self.get_or_refresh_commits_shallow()?;
-            let Some(selected_commit) = selected_hash.get(selection_idx) else {
-                return Ok(None);
-            };
-            selected_commit.id
-        };
-        let commit = self.repo.find_commit(id)?;
-        let msg = commit.message()?;
-        let title = msg.title.to_string().trim().to_owned();
-        let msg_detail = if let Some(body) = msg.body() {
-            body.without_trailer().to_string()
-        } else {
-            String::new()
-        };
-        let author = format!("{} <{}>", commit.author()?.name, commit.author()?.email).trim().to_owned();
-        let committer = format!("{} <{}>", commit.committer()?.name, commit.committer()?.email).trim().to_owned();
-        let parents = commit.parent_ids()
-            .map(|id| {
-                let parent_commit = self.repo.find_commit(id)?;
-                let msg = parent_commit.message()?.title.to_string().trim().to_owned();
-                Ok((id.into(), id.shorten_or_id(), msg))
-            })
-            .collect::<Result<Vec<_>, anyhow::Error>>()?;
-        let commit = String::new();
-        let diff_parent = String::new();
-        Ok(Some(CommitDetail { commit, author, committer, parents, title, msg_detail, diff_parent }))
-    }
-    fn invalidate_caches(&mut self) {
-        self.commits_shallow_cached = None;
     }
 }
 
