@@ -4,7 +4,7 @@ use anyhow::{Context, anyhow};
 use crossterm::event::KeyCode;
 use gix::{ObjectId, Repository};
 use ratatui::{
-    DefaultTerminal, Frame, crossterm::event, layout::{Constraint, Layout}, text::Line, widgets::{Block, Paragraph, Wrap}
+    DefaultTerminal, Frame, crossterm::event, layout::{Constraint, Layout}, style::Stylize, text::{Line, Span}, widgets::{Block, Paragraph, Wrap}
 };
 
 struct CommitShallow {
@@ -16,6 +16,8 @@ struct CommitShallow {
 
 struct CommitDetail {
     commit: String,
+    author: String,
+    committer: String,
     title: String,
     msg_detail: String,
     diff_parent: String,
@@ -73,7 +75,13 @@ impl State {
         if let Some(selected_commit) = self.get_selected_commit()
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?
         {
+            fn line_with_kind<'a>(kind: &'a str, s: String) -> Line<'a> {
+                Line::from(vec![Span::from(kind).bold(), Span::from(s)])
+            }
             let lines = vec![
+                line_with_kind("Author: ", selected_commit.author),
+                line_with_kind("Committer: ", selected_commit.committer),
+                Line::from(""),
                 Line::from(selected_commit.title),
                 Line::from(""),
                 Line::from(selected_commit.msg_detail),
@@ -165,9 +173,11 @@ impl State {
         } else {
             String::new()
         };
+        let author = format!("{} <{}>", commit.author()?.name, commit.author()?.email).trim().to_owned();
+        let committer = format!("{} <{}>", commit.committer()?.name, commit.committer()?.email).trim().to_owned();
         let commit = String::new();
         let diff_parent = String::new();
-        Ok(Some(CommitDetail { commit, title, msg_detail, diff_parent }))
+        Ok(Some(CommitDetail { commit, author, committer, title, msg_detail, diff_parent }))
     }
     fn invalidate_caches(&mut self) {
         self.commits_shallow_cached = None;
