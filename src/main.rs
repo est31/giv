@@ -4,7 +4,7 @@ use anyhow::{Context, anyhow};
 use crossterm::event::KeyCode;
 use gix::Repository;
 use ratatui::{
-    DefaultTerminal, Frame, crossterm::event, layout::{Constraint, Layout}, text::Line, widgets::{Paragraph, Wrap}
+    DefaultTerminal, Frame, crossterm::event, layout::{Constraint, Layout}, text::Line, widgets::{Block, Paragraph, Wrap}
 };
 
 struct State {
@@ -31,10 +31,12 @@ impl State {
         let [commit_area, times_area] = Layout::horizontal([Constraint::Fill(2), Constraint::Fill(1)]).areas(area);
         let paragraph = Paragraph::new(lines)
             .wrap(Wrap { trim: true });
-        frame.render_widget(paragraph, commit_area);
+        let block_commits = Block::bordered();
+        frame.render_widget(paragraph.block(block_commits), commit_area);
         let paragraph = Paragraph::new(times)
             .wrap(Wrap { trim: true });
-        frame.render_widget(paragraph, times_area);
+        let block_times = Block::bordered();
+        frame.render_widget(paragraph.block(block_times), times_area);
         Ok(())
     }
     fn commits_times_lines(&self) -> Result<Vec<(Line<'_>, Line<'_>)>, anyhow::Error> {
