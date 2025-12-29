@@ -4,8 +4,7 @@ use anyhow::{Context, anyhow};
 use crossterm::event::KeyCode;
 use gix::Repository;
 use ratatui::{
-    DefaultTerminal, crossterm::event, Frame,
-    text::Line,
+    DefaultTerminal, Frame, crossterm::event, text::Line, widgets::Wrap, widgets::Paragraph,
 };
 
 struct State {
@@ -27,7 +26,8 @@ impl State {
     fn draw(&self, frame: &mut Frame) -> Result<(), std::io::Error> {
         let lines = self.commits_lines()
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-        let paragraph = ratatui::widgets::Paragraph::new(lines);
+        let paragraph = Paragraph::new(lines)
+            .wrap(Wrap { trim: true });
         frame.render_widget(paragraph, frame.area());
         Ok(())
     }
@@ -37,7 +37,7 @@ impl State {
         let id = head_commit.id().shorten_or_id();
         let title = msg.title.to_string();
         let mut res = Vec::new();
-        res.push(Line::from(format!("Commit {} {}", id, title.trim())));
+        res.push(Line::from(format!("{} {}", id, title.trim())));
 
         let budget = 10;
         let mut commit = head_commit;
@@ -52,7 +52,7 @@ impl State {
             let msg = commit.message()?;
             let id = commit.id().shorten_or_id();
             let title = msg.title.to_string();
-            res.push(Line::from(format!("Commit {} {}", id, title.trim())));
+            res.push(Line::from(format!("{} {}", id, title.trim())));
         }
         Ok(res)
     }
