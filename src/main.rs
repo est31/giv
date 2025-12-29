@@ -112,7 +112,7 @@ impl State {
             res.push(CommitShallow {
                 id: head_commit.id,
                 commit: format!("{} {}", id, title.trim()),
-                author: format!("{}", head_commit.author()?.name).trim().to_owned(),
+                author: format!("{} <{}>", head_commit.author()?.name, head_commit.author()?.email).trim().to_owned(),
                 time: format_time(head_commit.time()?)?
             });
             let budget = self.wanted_commit_list_count;
@@ -131,7 +131,7 @@ impl State {
                 res.push(CommitShallow {
                 id: commit.id,
                     commit: format!("{} {}", id, title.trim()),
-                    author: format!("{}", commit.author()?.name).trim().to_owned(),
+                    author: format!("{} <{}>", commit.author()?.name, commit.author()?.email).trim().to_owned(),
                     time: format_time(commit.time()?)?
                 });
             }
