@@ -2,17 +2,23 @@ use std::time::Duration;
 
 use anyhow::{Context, anyhow};
 use crossterm::event::KeyCode;
-use gix::{Repository};
+use gix::{ObjectId, Repository, repository::diff_resource_cache};
 use ratatui::{
     DefaultTerminal, Frame, crossterm::event, layout::{Constraint, Layout}, text::Line, widgets::{Block, Paragraph, Wrap}
 };
 
 struct CommitShallow {
+    id: ObjectId,
     commit: String,
     author: String,
     time: String,
 }
 
+struct CommitDetail {
+    commit: String,
+    msg_detail: String,
+    diff_parent: String,
+}
 struct State {
     repo: Repository,
     commits_shallow_cached: Option<Vec<CommitShallow>>,
@@ -38,7 +44,9 @@ impl State {
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
 
         let area = frame.area();
-        let [commit_area, author_area, times_area] = Layout::horizontal([Constraint::Fill(2), Constraint::Fill(1), Constraint::Fill(1)]).areas(area);
+        let [log_area, diff_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1)]).areas(area);
+
+        let [commit_area, author_area, times_area] = Layout::horizontal([Constraint::Fill(2), Constraint::Fill(1), Constraint::Fill(1)]).areas(log_area);
 
         let paragraph = Paragraph::new(lines)
             .wrap(Wrap { trim: true });
@@ -54,6 +62,15 @@ impl State {
             .wrap(Wrap { trim: true });
         let block_times = Block::bordered();
         frame.render_widget(paragraph.block(block_times), times_area);
+
+        if let Some(selected_commit) = self.get_selected_commit()
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?
+        {
+            let paragraph = Paragraph::new(selected_commit.msg_detail)
+                .wrap(Wrap { trim: true });
+            let block_selected = Block::bordered();
+            frame.render_widget(paragraph.block(block_selected), diff_area);
+        }
         Ok(())
     }
     fn commits_authors_times_lines(&mut self) -> Result<(Vec<Line<'_>>, Vec<Line<'_>>, Vec<Line<'_>>), anyhow::Error> {
@@ -87,6 +104,7 @@ impl State {
             let title = msg.title.to_string();
             let mut res = Vec::new();
             res.push(CommitShallow {
+                id: head_commit.id,
                 commit: format!("{} {}", id, title.trim()),
                 author: format!("{}", head_commit.author()?.name).trim().to_owned(),
                 time: format_time(head_commit.time()?)?
@@ -105,6 +123,7 @@ impl State {
                 let id = commit.id().shorten_or_id();
                 let title = msg.title.to_string();
                 res.push(CommitShallow {
+                id: commit.id,
                     commit: format!("{} {}", id, title.trim()),
                     author: format!("{}", commit.author()?.name).trim().to_owned(),
                     time: format_time(commit.time()?)?
@@ -114,6 +133,27 @@ impl State {
         } else {
             Ok(self.commits_shallow_cached.as_ref().unwrap())
         }
+    }
+    fn get_selected_commit(&mut self) -> Result<Option<CommitDetail>, anyhow::Error> {
+        let Some(selection_idx) = self.selection_idx else {
+            return Ok(None);
+        };
+        let id = {
+            let selected_hash = self.get_or_refresh_commits_shallow()?;
+            let Some(selected_commit) = selected_hash.get(selection_idx) else {
+                return Ok(None);
+            };
+            selected_commit.id
+        };
+        let commit = self.repo.find_commit(id)?;
+        let msg_detail = if let Some(body) = commit.message()?.body() {
+            body.without_trailer().to_string()
+        } else {
+            String::new()
+        };
+        let commit = String::new();
+        let diff_parent = String::new();
+        Ok(Some(CommitDetail { commit, msg_detail, diff_parent }))
     }
     fn invalidate_caches(&mut self) {
         self.commits_shallow_cached = None;
