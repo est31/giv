@@ -4,7 +4,7 @@ use anyhow::{Context, anyhow};
 use crossterm::event::KeyCode;
 use gix::Repository;
 use ratatui::{
-    DefaultTerminal, Frame, crossterm::event, text::Line, widgets::Wrap, widgets::Paragraph,
+    DefaultTerminal, Frame, crossterm::event, layout::{Constraint, Layout}, text::Line, widgets::{Paragraph, Wrap}
 };
 
 struct State {
@@ -24,20 +24,31 @@ impl State {
         Ok(state)
     }
     fn draw(&self, frame: &mut Frame) -> Result<(), std::io::Error> {
-        let lines = self.commits_lines()
+        let commits_times_lines = self.commits_times_lines()
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        let (lines, times): (Vec<Line<'_>>, Vec<Line<'_>>) = commits_times_lines.into_iter().unzip();
+        let area = frame.area();
+        let [commit_area, times_area] = Layout::horizontal([Constraint::Fill(2), Constraint::Fill(1)]).areas(area);
         let paragraph = Paragraph::new(lines)
             .wrap(Wrap { trim: true });
-        frame.render_widget(paragraph, frame.area());
+        frame.render_widget(paragraph, commit_area);
+        let paragraph = Paragraph::new(times)
+            .wrap(Wrap { trim: true });
+        frame.render_widget(paragraph, times_area);
         Ok(())
     }
-    fn commits_lines(&self) -> Result<Vec<Line<'_>>, anyhow::Error> {
+    fn commits_times_lines(&self) -> Result<Vec<(Line<'_>, Line<'_>)>, anyhow::Error> {
+        let format_time = |time: gix::date::Time| {
+            time.format(gix::date::time::format::ISO8601)
+        };
         let head_commit = self.repo.head_commit()?;
         let msg = head_commit.message()?;
         let id = head_commit.id().shorten_or_id();
         let title = msg.title.to_string();
         let mut res = Vec::new();
-        res.push(Line::from(format!("{} {}", id, title.trim())));
+        let commit_line = Line::from(format!("{} {}", id, title.trim()));
+        let time_line = Line::from(format_time(head_commit.time()?)?);
+        res.push((commit_line, time_line));
 
         let budget = 10;
         let mut commit = head_commit;
@@ -52,7 +63,9 @@ impl State {
             let msg = commit.message()?;
             let id = commit.id().shorten_or_id();
             let title = msg.title.to_string();
-            res.push(Line::from(format!("{} {}", id, title.trim())));
+            let commit_line = Line::from(format!("{} {}", id, title.trim()));
+            let time_line = Line::from(format_time(commit.time()?)?);
+            res.push((commit_line, time_line));
         }
         Ok(res)
     }
