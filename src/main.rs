@@ -4,7 +4,7 @@ use anyhow::{Context, anyhow};
 use crossterm::event::KeyCode;
 use gix::{ObjectId, Repository, hash::Prefix};
 use ratatui::{
-    DefaultTerminal, Frame, crossterm::event, layout::{Constraint, Layout}, style::Stylize, text::{Line, Span}, widgets::{Block, Paragraph, Wrap}
+    DefaultTerminal, Frame, crossterm::event, layout::{Constraint, Layout}, style::Stylize, text::{Line, Span, Text}, widgets::{Block, Paragraph, Wrap}
 };
 
 struct CommitShallow {
@@ -82,16 +82,16 @@ impl State {
             let parents_str = selected_commit.parents.iter().map(|(_oid, oid_prefix, ttl)| format!("{oid_prefix} {ttl}"))
                 .collect::<Vec<String>>();
             let parents_str = parents_str.join(", ");
-            let lines = vec![
+            let mut text = Text::from(vec![
                 line_with_kind("Author: ", selected_commit.author),
                 line_with_kind("Committer: ", selected_commit.committer),
                 line_with_kind("Parents: ", parents_str),
                 Line::from(""),
                 Line::from(selected_commit.title),
                 Line::from(""),
-                Line::from(selected_commit.msg_detail),
-            ];
-            let paragraph = Paragraph::new(lines)
+            ]);
+            text.extend(Text::raw(selected_commit.msg_detail));
+            let paragraph = Paragraph::new(text)
                 .wrap(Wrap { trim: true });
             let block_selected = Block::bordered();
             frame.render_widget(paragraph.block(block_selected), diff_area);
