@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use anyhow::{Context, anyhow};
 use crossterm::event::KeyCode;
-use gix::{Repository, bstr::ByteSlice};
+use gix::{Repository};
 use ratatui::{
     DefaultTerminal, Frame, crossterm::event, layout::{Constraint, Layout}, text::Line, widgets::{Block, Paragraph, Wrap}
 };
