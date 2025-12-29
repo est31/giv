@@ -115,6 +115,9 @@ impl State {
             Ok(self.commits_shallow_cached.as_ref().unwrap())
         }
     }
+    fn invalidate_caches(&mut self) {
+        self.commits_shallow_cached = None;
+    }
 }
 
 const POLL_INTERVAL: Duration = Duration::from_millis(100);
@@ -142,12 +145,14 @@ impl App {
                             } else {
                                 self.state.selection_idx = Some(0);
                             }
+                            self.state.invalidate_caches();
                         } else if key.code == KeyCode::Up {
                             if let Some(idx) = self.state.selection_idx {
                                 self.state.selection_idx = Some(idx.saturating_sub(1));
                             } else {
                                 self.state.selection_idx = Some(0);
                             }
+                            self.state.invalidate_caches();
                         }
                     }
                     event::Event::FocusGained => (),
