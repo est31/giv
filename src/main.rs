@@ -16,6 +16,7 @@ struct CommitShallow {
 struct State {
     repo: Repository,
     commits_shallow_cached: Option<Vec<CommitShallow>>,
+    selection_idx: Option<usize>,
 }
 
 struct App {
@@ -28,6 +29,7 @@ impl State {
         let state = State {
             repo: gix::open(".")?,
             commits_shallow_cached: None,
+            selection_idx: None,
         };
         Ok(state)
     }
@@ -56,12 +58,21 @@ impl State {
     }
     fn commits_authors_times_lines(&mut self) -> Result<(Vec<Line<'_>>, Vec<Line<'_>>, Vec<Line<'_>>), anyhow::Error> {
         // cache the commits to display so that we don't do IO at each render iteration
+        let selection_idx = self.selection_idx;
         let commits_shallow = self.get_or_refresh_commits_shallow()?;
         let [mut lines, mut authors, mut times]: [Vec<_>; 3] = Default::default();
-        for cmt in commits_shallow.iter() {
+
+        let selected_st = ratatui::style::Modifier::BOLD;
+        for (idx, cmt) in commits_shallow.iter().enumerate() {
+            if Some(idx) == selection_idx {
+                lines.push(Line::from(cmt.commit.clone()).style(selected_st));
+                authors.push(Line::from(cmt.author.clone()).style(selected_st));
+                times.push(Line::from(cmt.time.clone()).style(selected_st));
+            } else {
             lines.push(Line::from(cmt.commit.clone()));
             authors.push(Line::from(cmt.author.clone()));
             times.push(Line::from(cmt.time.clone()));
+            }
         }
         Ok((lines, authors, times))
     }
@@ -106,6 +117,8 @@ impl State {
     }
 }
 
+const POLL_INTERVAL: Duration = Duration::from_millis(100);
+
 impl App {
     fn new(terminal: DefaultTerminal) -> Result<App, anyhow::Error> {
         let app = App {
@@ -117,12 +130,24 @@ impl App {
     fn run(&mut self) -> Result<(), anyhow::Error> {
         loop {
             self.terminal.try_draw(|frame| self.state.draw(frame))?;
-            if event::poll(Duration::from_millis(100)).context("failed to poll for events")? {
+            if event::poll(POLL_INTERVAL).context("failed to poll for events")? {
                 match event::read().context("failed to read event")? {
                     event::Event::Key(key) => {
                         if key.code == KeyCode::Char('q') {
                             // Quit the application using q
                             break;
+                        } else if key.code == KeyCode::Down {
+                            if let Some(idx) = self.state.selection_idx {
+                                self.state.selection_idx = Some(idx + 1);
+                            } else {
+                                self.state.selection_idx = Some(0);
+                            }
+                        } else if key.code == KeyCode::Up {
+                            if let Some(idx) = self.state.selection_idx {
+                                self.state.selection_idx = Some(idx.saturating_sub(1));
+                            } else {
+                                self.state.selection_idx = Some(0);
+                            }
                         }
                     }
                     event::Event::FocusGained => (),
