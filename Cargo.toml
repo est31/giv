@@ -2,5 +2,11 @@
 name = "gitv"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
 
 [dependencies]
+anyhow = "1.0"
+gix = "0.76"
+ratatui = "0.30"
+crossterm = "0.29"
+clap = "4.1"
