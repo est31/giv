@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use anyhow::{Context, anyhow};
 use crossterm::event::KeyCode;
-use gix::{ObjectId, Repository};
+use gix::{ObjectId, Repository, hash::Prefix};
 use ratatui::{
     DefaultTerminal, Frame, crossterm::event, layout::{Constraint, Layout}, style::Stylize, text::{Line, Span}, widgets::{Block, Paragraph, Wrap}
 };
@@ -20,6 +20,7 @@ struct CommitDetail {
     committer: String,
     title: String,
     msg_detail: String,
+    parents: Vec<(ObjectId, Prefix, String)>,
     diff_parent: String,
 }
 struct State {
@@ -78,9 +79,13 @@ impl State {
             fn line_with_kind<'a>(kind: &'a str, s: String) -> Line<'a> {
                 Line::from(vec![Span::from(kind).bold(), Span::from(s)])
             }
+            let parents_str = selected_commit.parents.iter().map(|(_oid, oid_prefix, ttl)| format!("{oid_prefix} {ttl}"))
+                .collect::<Vec<String>>();
+            let parents_str = parents_str.join(", ");
             let lines = vec![
                 line_with_kind("Author: ", selected_commit.author),
                 line_with_kind("Committer: ", selected_commit.committer),
+                line_with_kind("Parents: ", parents_str),
                 Line::from(""),
                 Line::from(selected_commit.title),
                 Line::from(""),
@@ -175,9 +180,16 @@ impl State {
         };
         let author = format!("{} <{}>", commit.author()?.name, commit.author()?.email).trim().to_owned();
         let committer = format!("{} <{}>", commit.committer()?.name, commit.committer()?.email).trim().to_owned();
+        let parents = commit.parent_ids()
+            .map(|id| {
+                let parent_commit = self.repo.find_commit(id)?;
+                let msg = parent_commit.message()?.title.to_string().trim().to_owned();
+                Ok((id.into(), id.shorten_or_id(), msg))
+            })
+            .collect::<Result<Vec<_>, anyhow::Error>>()?;
         let commit = String::new();
         let diff_parent = String::new();
-        Ok(Some(CommitDetail { commit, author, committer, title, msg_detail, diff_parent }))
+        Ok(Some(CommitDetail { commit, author, committer, parents, title, msg_detail, diff_parent }))
     }
     fn invalidate_caches(&mut self) {
         self.commits_shallow_cached = None;
