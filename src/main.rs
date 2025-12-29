@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use anyhow::{Context, anyhow};
 use crossterm::event::KeyCode;
-use gix::{ObjectId, Repository, repository::diff_resource_cache};
+use gix::{ObjectId, Repository};
 use ratatui::{
     DefaultTerminal, Frame, crossterm::event, layout::{Constraint, Layout}, text::Line, widgets::{Block, Paragraph, Wrap}
 };
@@ -16,6 +16,7 @@ struct CommitShallow {
 
 struct CommitDetail {
     commit: String,
+    title: String,
     msg_detail: String,
     diff_parent: String,
 }
@@ -72,7 +73,12 @@ impl State {
         if let Some(selected_commit) = self.get_selected_commit()
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?
         {
-            let paragraph = Paragraph::new(selected_commit.msg_detail)
+            let lines = vec![
+                Line::from(selected_commit.title),
+                Line::from(""),
+                Line::from(selected_commit.msg_detail),
+            ];
+            let paragraph = Paragraph::new(lines)
                 .wrap(Wrap { trim: true });
             let block_selected = Block::bordered();
             frame.render_widget(paragraph.block(block_selected), diff_area);
@@ -152,14 +158,16 @@ impl State {
             selected_commit.id
         };
         let commit = self.repo.find_commit(id)?;
-        let msg_detail = if let Some(body) = commit.message()?.body() {
+        let msg = commit.message()?;
+        let title = msg.title.to_string().trim().to_owned();
+        let msg_detail = if let Some(body) = msg.body() {
             body.without_trailer().to_string()
         } else {
             String::new()
         };
         let commit = String::new();
         let diff_parent = String::new();
-        Ok(Some(CommitDetail { commit, msg_detail, diff_parent }))
+        Ok(Some(CommitDetail { commit, title, msg_detail, diff_parent }))
     }
     fn invalidate_caches(&mut self) {
         self.commits_shallow_cached = None;
