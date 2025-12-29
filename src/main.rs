@@ -2,13 +2,14 @@ use std::time::Duration;
 
 use anyhow::{Context, anyhow};
 use crossterm::event::KeyCode;
-use gix::Repository;
+use gix::{Repository, bstr::ByteSlice};
 use ratatui::{
     DefaultTerminal, Frame, crossterm::event, layout::{Constraint, Layout}, text::Line, widgets::{Block, Paragraph, Wrap}
 };
 
 struct CommitShallow {
     commit: String,
+    author: String,
     time: String,
 }
 
@@ -31,28 +32,38 @@ impl State {
         Ok(state)
     }
     fn draw(&mut self, frame: &mut Frame) -> Result<(), std::io::Error> {
-        let commits_times_lines = self.commits_times_lines()
+        let (lines, authors, times) = self.commits_authors_times_lines()
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-        let (lines, times): (Vec<Line<'_>>, Vec<Line<'_>>) = commits_times_lines.into_iter().unzip();
+
         let area = frame.area();
-        let [commit_area, times_area] = Layout::horizontal([Constraint::Fill(2), Constraint::Fill(1)]).areas(area);
+        let [commit_area, author_area, times_area] = Layout::horizontal([Constraint::Fill(2), Constraint::Fill(1), Constraint::Fill(1)]).areas(area);
+
         let paragraph = Paragraph::new(lines)
             .wrap(Wrap { trim: true });
         let block_commits = Block::bordered();
         frame.render_widget(paragraph.block(block_commits), commit_area);
+
+        let paragraph = Paragraph::new(authors)
+            .wrap(Wrap { trim: true });
+        let block_author = Block::bordered();
+        frame.render_widget(paragraph.block(block_author), author_area);
+
         let paragraph = Paragraph::new(times)
             .wrap(Wrap { trim: true });
         let block_times = Block::bordered();
         frame.render_widget(paragraph.block(block_times), times_area);
         Ok(())
     }
-    fn commits_times_lines(&mut self) -> Result<Vec<(Line<'_>, Line<'_>)>, anyhow::Error> {
+    fn commits_authors_times_lines(&mut self) -> Result<(Vec<Line<'_>>, Vec<Line<'_>>, Vec<Line<'_>>), anyhow::Error> {
         // cache the commits to display so that we don't do IO at each render iteration
         let commits_shallow = self.get_or_refresh_commits_shallow()?;
-        let res = commits_shallow.iter().map(|cmt| {
-            (Line::from(cmt.commit.clone()), Line::from(cmt.time.clone()))
-        }).collect();
-        Ok(res)
+        let [mut lines, mut authors, mut times]: [Vec<_>; 3] = Default::default();
+        for cmt in commits_shallow.iter() {
+            lines.push(Line::from(cmt.commit.clone()));
+            authors.push(Line::from(cmt.author.clone()));
+            times.push(Line::from(cmt.time.clone()));
+        }
+        Ok((lines, authors, times))
     }
     fn get_or_refresh_commits_shallow(&mut self) -> Result<&[CommitShallow], anyhow::Error> {
         if self.commits_shallow_cached.is_none() {
@@ -66,6 +77,7 @@ impl State {
             let mut res = Vec::new();
             res.push(CommitShallow {
                 commit: format!("{} {}", id, title.trim()),
+                author: format!("{}", head_commit.author()?.name).trim().to_owned(),
                 time: format_time(head_commit.time()?)?
             });
             let budget = 10;
@@ -83,6 +95,7 @@ impl State {
                 let title = msg.title.to_string();
                 res.push(CommitShallow {
                     commit: format!("{} {}", id, title.trim()),
+                    author: format!("{}", commit.author()?.name).trim().to_owned(),
                     time: format_time(commit.time()?)?
                 });
             }
