@@ -1,10 +1,5 @@
-use std::time::Duration;
-
-use anyhow::{Context, anyhow};
-use crossterm::event::KeyCode;
-use gix::{ObjectId, Repository, hash::Prefix};
 use ratatui::{
-    DefaultTerminal, Frame, crossterm::event, layout::{Constraint, Layout}, style::Stylize, text::{Line, Span, Text}, widgets::{Block, Paragraph, Wrap}
+    Frame, layout::{Constraint, Layout}, style::Stylize, text::{Line, Span, Text}, widgets::{Block, Paragraph, Wrap}
 };
 
 use super::State;
