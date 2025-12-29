@@ -57,18 +57,15 @@ impl State {
 
         let [commit_area, author_area, times_area] = Layout::horizontal([Constraint::Fill(2), Constraint::Fill(1), Constraint::Fill(1)]).areas(log_area);
 
-        let paragraph = Paragraph::new(lines)
-            .wrap(Wrap { trim: true });
+        let paragraph = Paragraph::new(lines);
         let block_commits = Block::bordered();
         frame.render_widget(paragraph.block(block_commits), commit_area);
 
-        let paragraph = Paragraph::new(authors)
-            .wrap(Wrap { trim: true });
+        let paragraph = Paragraph::new(authors);
         let block_author = Block::bordered();
         frame.render_widget(paragraph.block(block_author), author_area);
 
-        let paragraph = Paragraph::new(times)
-            .wrap(Wrap { trim: true });
+        let paragraph = Paragraph::new(times);
         let block_times = Block::bordered();
         frame.render_widget(paragraph.block(block_times), times_area);
 
