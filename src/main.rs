@@ -2,9 +2,9 @@ use std::time::Duration;
 
 use anyhow::{Context, anyhow};
 use crossterm::event::KeyCode;
-use gix::{ObjectId, Repository, hash::Prefix};
+use gix::Repository;
 use ratatui::{
-    DefaultTerminal, Frame, crossterm::event, layout::{Constraint, Layout}, style::Stylize, text::{Line, Span, Text}, widgets::{Block, Paragraph, Wrap}
+    DefaultTerminal, crossterm::event,
 };
 use model::CommitShallow;
 

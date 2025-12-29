@@ -1,5 +1,4 @@
 use gix::{ObjectId, actor::SignatureRef, hash::Prefix};
-use ratatui::{text::Line,};
 
 use crate::State;
 
