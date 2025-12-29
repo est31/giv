@@ -7,8 +7,14 @@ use ratatui::{
     DefaultTerminal, Frame, crossterm::event, layout::{Constraint, Layout}, text::Line, widgets::{Block, Paragraph, Wrap}
 };
 
+struct CommitShallow {
+    commit: String,
+    time: String,
+}
+
 struct State {
     repo: Repository,
+    commits_shallow_cached: Option<Vec<CommitShallow>>,
 }
 
 struct App {
@@ -20,10 +26,11 @@ impl State {
     fn new() -> Result<State, anyhow::Error> {
         let state = State {
             repo: gix::open(".")?,
+            commits_shallow_cached: None,
         };
         Ok(state)
     }
-    fn draw(&self, frame: &mut Frame) -> Result<(), std::io::Error> {
+    fn draw(&mut self, frame: &mut Frame) -> Result<(), std::io::Error> {
         let commits_times_lines = self.commits_times_lines()
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
         let (lines, times): (Vec<Line<'_>>, Vec<Line<'_>>) = commits_times_lines.into_iter().unzip();
@@ -39,37 +46,50 @@ impl State {
         frame.render_widget(paragraph.block(block_times), times_area);
         Ok(())
     }
-    fn commits_times_lines(&self) -> Result<Vec<(Line<'_>, Line<'_>)>, anyhow::Error> {
-        let format_time = |time: gix::date::Time| {
-            time.format(gix::date::time::format::ISO8601)
-        };
-        let head_commit = self.repo.head_commit()?;
-        let msg = head_commit.message()?;
-        let id = head_commit.id().shorten_or_id();
-        let title = msg.title.to_string();
-        let mut res = Vec::new();
-        let commit_line = Line::from(format!("{} {}", id, title.trim()));
-        let time_line = Line::from(format_time(head_commit.time()?)?);
-        res.push((commit_line, time_line));
-
-        let budget = 10;
-        let mut commit = head_commit;
-
-        for _ in 0..budget {
-            // TODO support multiple parent IDs
-            let Some(parent_id) = commit.parent_ids().next() else {
-                // No parent left
-                break;
-            };
-            commit = self.repo.find_commit(parent_id)?;
-            let msg = commit.message()?;
-            let id = commit.id().shorten_or_id();
-            let title = msg.title.to_string();
-            let commit_line = Line::from(format!("{} {}", id, title.trim()));
-            let time_line = Line::from(format_time(commit.time()?)?);
-            res.push((commit_line, time_line));
-        }
+    fn commits_times_lines(&mut self) -> Result<Vec<(Line<'_>, Line<'_>)>, anyhow::Error> {
+        // cache the commits to display so that we don't do IO at each render iteration
+        let commits_shallow = self.get_or_refresh_commits_shallow()?;
+        let res = commits_shallow.iter().map(|cmt| {
+            (Line::from(cmt.commit.clone()), Line::from(cmt.time.clone()))
+        }).collect();
         Ok(res)
+    }
+    fn get_or_refresh_commits_shallow(&mut self) -> Result<&[CommitShallow], anyhow::Error> {
+        if self.commits_shallow_cached.is_none() {
+            let format_time = |time: gix::date::Time| {
+                time.format(gix::date::time::format::ISO8601)
+            };
+            let head_commit = self.repo.head_commit()?;
+            let msg = head_commit.message()?;
+            let id = head_commit.id().shorten_or_id();
+            let title = msg.title.to_string();
+            let mut res = Vec::new();
+            res.push(CommitShallow {
+                commit: format!("{} {}", id, title.trim()),
+                time: format_time(head_commit.time()?)?
+            });
+            let budget = 10;
+            let mut commit = head_commit;
+
+            for _ in 0..budget {
+                // TODO support multiple parent IDs
+                let Some(parent_id) = commit.parent_ids().next() else {
+                    // No parent left
+                    break;
+                };
+                commit = self.repo.find_commit(parent_id)?;
+                let msg = commit.message()?;
+                let id = commit.id().shorten_or_id();
+                let title = msg.title.to_string();
+                res.push(CommitShallow {
+                    commit: format!("{} {}", id, title.trim()),
+                    time: format_time(commit.time()?)?
+                });
+            }
+            Ok(self.commits_shallow_cached.insert(res))
+        } else {
+            Ok(self.commits_shallow_cached.as_ref().unwrap())
+        }
     }
 }
 
