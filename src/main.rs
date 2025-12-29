@@ -3,7 +3,8 @@ fn print_commits() -> Result<(), anyhow::Error> {
     let head_commit = repo.head_commit()?;
     let msg = head_commit.message()?;
     let id = head_commit.id().shorten_or_id();
-    println!("Commit {} {}", id, msg.title);
+    let title = msg.title.to_string();
+    println!("Commit {} {}", id, title.trim());
 
     let budget = 10;
     let mut commit = head_commit;
@@ -17,7 +18,8 @@ fn print_commits() -> Result<(), anyhow::Error> {
         commit = repo.find_commit(parent_id)?;
         let msg = commit.message()?;
         let id = commit.id().shorten_or_id();
-        println!("Commit {} {}", id, msg.title);
+        let title = msg.title.to_string();
+        println!("Commit {} {}", id, title.trim());
     }
     Ok(())
 }
