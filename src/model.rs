@@ -1,4 +1,4 @@
-use gix::{ObjectId, hash::Prefix};
+use gix::{ObjectId, actor::SignatureRef, hash::Prefix};
 use ratatui::{text::Line,};
 
 use crate::State;
@@ -6,14 +6,19 @@ use crate::State;
 pub(crate) struct CommitShallow {
     pub(crate) id: ObjectId,
     pub(crate) commit: String,
-    pub(crate) author: String,
+    pub(crate) signature: Signature,
+}
+
+pub(crate) struct Signature {
+    pub(crate) author_name: String,
+    pub(crate) author_email: String,
     pub(crate) time: String,
 }
 
 pub(crate) struct CommitDetail {
     pub(crate) commit: String,
-    pub(crate) author: String,
-    pub(crate) committer: String,
+    pub(crate) author: Signature,
+    pub(crate) committer: Signature,
     pub(crate) title: String,
     pub(crate) msg_detail: String,
     pub(crate) parents: Vec<(ObjectId, Prefix, String)>,
@@ -31,6 +36,18 @@ pub(crate) struct Diff {
     pub(crate) files: Vec<(FileModificationKind, String)>,
 }
 
+impl std::fmt::Display for Signature {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} <{}>", self.author_name, self.author_email)
+    }
+}
+
+impl Signature {
+    pub(crate) fn format_with_time(&self) -> String {
+        format!("{} <{}> {}", self.author_name, self.author_email, self.time)
+    }
+}
+
 impl State {
     pub(crate) fn commits_authors_times_lines(&mut self) -> Result<(Vec<Line<'_>>, Vec<Line<'_>>, Vec<Line<'_>>), anyhow::Error> {
         // cache the commits to display so that we don't do IO at each render iteration
@@ -42,21 +59,25 @@ impl State {
         for (idx, cmt) in commits_shallow.iter().enumerate() {
             if Some(idx) == selection_idx {
                 lines.push(Line::from(cmt.commit.clone()).style(selected_st));
-                authors.push(Line::from(cmt.author.clone()).style(selected_st));
-                times.push(Line::from(cmt.time.clone()).style(selected_st));
+                authors.push(Line::from(cmt.signature.to_string()).style(selected_st));
+                times.push(Line::from(cmt.signature.time.clone()).style(selected_st));
             } else {
             lines.push(Line::from(cmt.commit.clone()));
-            authors.push(Line::from(cmt.author.clone()));
-            times.push(Line::from(cmt.time.clone()));
+            authors.push(Line::from(cmt.signature.to_string()));
+            times.push(Line::from(cmt.signature.time.clone()));
             }
         }
         Ok((lines, authors, times))
     }
+    fn make_signature(&self, sig: SignatureRef<'_>) -> Result<Signature, anyhow::Error> {
+        Ok(Signature {
+            author_name: sig.name.to_string().trim().to_owned(),
+            author_email: sig.email.to_string().trim().to_owned(),
+            time: sig.time()?.format(gix::date::time::format::ISO8601)?,
+        })
+    }
     pub(crate) fn get_or_refresh_commits_shallow(&mut self) -> Result<&[CommitShallow], anyhow::Error> {
         if self.commits_shallow_cached.is_none() {
-            let format_time = |time: gix::date::Time| {
-                time.format(gix::date::time::format::ISO8601)
-            };
             let head_commit = self.repo.head_commit()?;
             let msg = head_commit.message()?;
             let id = head_commit.id().shorten_or_id();
@@ -65,8 +86,7 @@ impl State {
             res.push(CommitShallow {
                 id: head_commit.id,
                 commit: format!("{} {}", id, title.trim()),
-                author: format!("{} <{}>", head_commit.author()?.name, head_commit.author()?.email).trim().to_owned(),
-                time: format_time(head_commit.time()?)?
+                signature: self.make_signature(head_commit.author()?)?,
             });
             let budget = self.wanted_commit_list_count;
             let mut commit = head_commit;
@@ -84,8 +104,7 @@ impl State {
                 res.push(CommitShallow {
                 id: commit.id,
                     commit: format!("{} {}", id, title.trim()),
-                    author: format!("{} <{}>", commit.author()?.name, commit.author()?.email).trim().to_owned(),
-                    time: format_time(commit.time()?)?
+                    signature: self.make_signature(commit.author()?)?,
                 });
             }
             Ok(self.commits_shallow_cached.insert(res))
@@ -112,8 +131,8 @@ impl State {
         } else {
             String::new()
         };
-        let author = format!("{} <{}>", commit.author()?.name, commit.author()?.email).trim().to_owned();
-        let committer = format!("{} <{}>", commit.committer()?.name, commit.committer()?.email).trim().to_owned();
+        let author = self.make_signature(commit.author()?)?;
+        let committer = self.make_signature(commit.committer()?)?;
         let parents = commit.parent_ids()
             .map(|id| {
                 let parent_commit = self.repo.find_commit(id)?;

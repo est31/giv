@@ -49,8 +49,8 @@ impl State {
                 .collect::<Vec<String>>();
             let parents_str = parents_str.join(", ");
             let mut text = Text::from(vec![
-                line_with_kind("Author: ", selected_commit.author),
-                line_with_kind("Committer: ", selected_commit.committer),
+                line_with_kind("Author: ", selected_commit.author.format_with_time()),
+                line_with_kind("Committer: ", selected_commit.committer.format_with_time()),
                 line_with_kind("Parents: ", parents_str),
                 Line::from(""),
                 Line::from(selected_commit.title),
