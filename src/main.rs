@@ -21,6 +21,7 @@ struct CommitDetail {
 }
 struct State {
     repo: Repository,
+    wanted_commit_list_count: usize,
     commits_shallow_cached: Option<Vec<CommitShallow>>,
     selection_idx: Option<usize>,
 }
@@ -34,16 +35,24 @@ impl State {
     fn new() -> Result<State, anyhow::Error> {
         let state = State {
             repo: gix::open(".")?,
+            wanted_commit_list_count: 10,
             commits_shallow_cached: None,
             selection_idx: None,
         };
         Ok(state)
     }
     fn draw(&mut self, frame: &mut Frame) -> Result<(), std::io::Error> {
+        let area = frame.area();
+
+        // We allocate a bit more commits here than needed but this is ok
+        if self.wanted_commit_list_count != area.height as usize {
+            self.wanted_commit_list_count = area.height as usize;
+            self.invalidate_caches();
+        }
+
         let (lines, authors, times) = self.commits_authors_times_lines()
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
 
-        let area = frame.area();
         let [log_area, diff_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1)]).areas(area);
 
         let [commit_area, author_area, times_area] = Layout::horizontal([Constraint::Fill(2), Constraint::Fill(1), Constraint::Fill(1)]).areas(log_area);
@@ -109,7 +118,7 @@ impl State {
                 author: format!("{}", head_commit.author()?.name).trim().to_owned(),
                 time: format_time(head_commit.time()?)?
             });
-            let budget = 10;
+            let budget = self.wanted_commit_list_count;
             let mut commit = head_commit;
 
             for _ in 0..budget {
@@ -199,7 +208,9 @@ impl App {
                     event::Event::FocusLost => (),
                     event::Event::Mouse(_) => (),
                     event::Event::Paste(_) => (),
-                    event::Event::Resize(_, _) => (),
+                    event::Event::Resize(_, _) => {
+                        self.state.invalidate_caches();
+                    },
                 }
             }
         }
