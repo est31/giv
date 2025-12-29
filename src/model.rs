@@ -49,26 +49,6 @@ impl Signature {
 }
 
 impl State {
-    pub(crate) fn commits_authors_times_lines(&mut self) -> Result<(Vec<Line<'_>>, Vec<Line<'_>>, Vec<Line<'_>>), anyhow::Error> {
-        // cache the commits to display so that we don't do IO at each render iteration
-        let selection_idx = self.selection_idx;
-        let commits_shallow = self.get_or_refresh_commits_shallow()?;
-        let [mut lines, mut authors, mut times]: [Vec<_>; 3] = Default::default();
-
-        let selected_st = ratatui::style::Modifier::BOLD;
-        for (idx, cmt) in commits_shallow.iter().enumerate() {
-            if Some(idx) == selection_idx {
-                lines.push(Line::from(cmt.commit.clone()).style(selected_st));
-                authors.push(Line::from(cmt.signature.to_string()).style(selected_st));
-                times.push(Line::from(cmt.signature.time.clone()).style(selected_st));
-            } else {
-            lines.push(Line::from(cmt.commit.clone()));
-            authors.push(Line::from(cmt.signature.to_string()));
-            times.push(Line::from(cmt.signature.time.clone()));
-            }
-        }
-        Ok((lines, authors, times))
-    }
     fn make_signature(&self, sig: SignatureRef<'_>) -> Result<Signature, anyhow::Error> {
         Ok(Signature {
             author_name: sig.name.to_string().trim().to_owned(),
