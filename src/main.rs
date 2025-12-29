@@ -176,7 +176,7 @@ impl App {
             if event::poll(POLL_INTERVAL).context("failed to poll for events")? {
                 match event::read().context("failed to read event")? {
                     event::Event::Key(key) => {
-                        if key.code == KeyCode::Char('q') {
+                        if key.code == KeyCode::Char('q') || key.code == KeyCode::Esc {
                             // Quit the application using q
                             break;
                         } else if key.code == KeyCode::Down {
