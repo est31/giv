@@ -41,6 +41,7 @@ impl State {
         if let Some(selected_commit) = self.get_selected_commit()
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?
         {
+            let [commit_descr_area, files_area] = Layout::horizontal([Constraint::Fill(3), Constraint::Fill(1)]).areas(diff_area);
             fn line_with_kind<'a>(kind: &'a str, s: String) -> Line<'a> {
                 Line::from(vec![Span::from(kind).bold(), Span::from(s)])
             }
@@ -56,10 +57,28 @@ impl State {
                 Line::from(""),
             ]);
             text.extend(Text::raw(selected_commit.msg_detail));
+
             let paragraph = Paragraph::new(text)
                 .wrap(Wrap { trim: true });
             let block_selected = Block::bordered();
-            frame.render_widget(paragraph.block(block_selected), diff_area);
+            frame.render_widget(paragraph.block(block_selected), commit_descr_area);
+
+            let files_lines = selected_commit.diff_parent.files.iter()
+                .map(|(kind, path)| {
+                    let kind_str = match kind {
+                        crate::model::FileModificationKind::Addition => 'A',
+                        crate::model::FileModificationKind::Deletion => 'D',
+                        crate::model::FileModificationKind::Modification => 'M',
+                        crate::model::FileModificationKind::Rewrite => 'R',
+                    };
+                    Line::from(format!("{kind_str} {path}"))
+                })
+                .collect::<Vec<_>>();
+
+            let paragraph = Paragraph::new(files_lines)
+                .wrap(Wrap { trim: true });
+            let block_selected = Block::bordered();
+            frame.render_widget(paragraph.block(block_selected), files_area);
         }
         Ok(())
     }

@@ -17,7 +17,18 @@ pub(crate) struct CommitDetail {
     pub(crate) title: String,
     pub(crate) msg_detail: String,
     pub(crate) parents: Vec<(ObjectId, Prefix, String)>,
-    pub(crate) diff_parent: String,
+    pub(crate) diff_parent: Diff,
+}
+
+pub(crate) enum FileModificationKind {
+    Addition,
+    Deletion,
+    Modification,
+    Rewrite,
+}
+
+pub(crate) struct Diff {
+    pub(crate) files: Vec<(FileModificationKind, String)>,
 }
 
 impl State {
@@ -110,9 +121,36 @@ impl State {
                 Ok((id.into(), id.shorten_or_id(), msg))
             })
             .collect::<Result<Vec<_>, anyhow::Error>>()?;
+        let diff_parent = self.compute_diff(commit)?;
         let commit = String::new();
-        let diff_parent = String::new();
         Ok(Some(CommitDetail { commit, author, committer, parents, title, msg_detail, diff_parent }))
+    }
+    fn compute_diff(&self, commit: gix::Commit<'_>) -> Result<Diff, anyhow::Error> {
+        let Some(parent_id) = commit.parent_ids().next() else {
+            return Ok(Diff { files: Vec::new() });
+        };
+        let parent = self.repo.find_commit(parent_id)?;
+        let diff_options = None;
+        let diff_changes = self.repo.diff_tree_to_tree(&commit.tree()?, &parent.tree()?, diff_options)?;
+        let files = diff_changes.iter().map(|chg| {
+            let chg = match chg {
+                gix::diff::tree_with_rewrites::Change::Addition { location, .. } => {
+                    (FileModificationKind::Addition, location.to_string().trim().to_owned())
+                },
+                gix::diff::tree_with_rewrites::Change::Deletion { location, .. } => {
+                    (FileModificationKind::Deletion, location.to_string().trim().to_owned())
+                },
+                gix::diff::tree_with_rewrites::Change::Modification { location, .. } => {
+                    (FileModificationKind::Modification, location.to_string().trim().to_owned())
+                },
+                gix::diff::tree_with_rewrites::Change::Rewrite { location, .. } => {
+                    (FileModificationKind::Rewrite, location.to_string().trim().to_owned())
+                },
+            };
+            Ok(chg)
+        })
+        .collect::<Result<Vec<_>, anyhow::Error>>()?;
+        Ok(Diff { files })
     }
     pub(crate) fn invalidate_caches(&mut self) {
         self.commits_shallow_cached = None;
