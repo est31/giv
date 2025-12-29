@@ -5,11 +5,18 @@ fn print_commits() -> Result<(), anyhow::Error> {
     let id = head_commit.id().shorten_or_id();
     println!("Commit {} {}", id, msg.title);
 
-    let mut parent_ids = head_commit.parent_ids();
-    while let Some(parent_id) = parent_ids.next() {
-        let cmt = repo.find_commit(parent_id)?;
-        let msg = cmt.message()?;
-        let id = cmt.id().shorten_or_id();
+    let budget = 10;
+    let mut commit = head_commit;
+
+    for _ in 0..budget {
+        // TODO support multiple parent IDs
+        let Some(parent_id) = commit.parent_ids().next() else {
+            // No parent left
+            break;
+        };
+        commit = repo.find_commit(parent_id)?;
+        let msg = commit.message()?;
+        let id = commit.id().shorten_or_id();
         println!("Commit {} {}", id, msg.title);
     }
     Ok(())
