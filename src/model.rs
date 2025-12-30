@@ -118,7 +118,11 @@ impl State {
                 Ok((id.into(), id.shorten_or_id(), msg))
             })
             .collect::<Result<Vec<_>, anyhow::Error>>()?;
-        let diff_parent = self.compute_diff(commit)?;
+        let diff_parent = match self.compute_diff(commit) {
+            Ok(d) => d,
+            // TODO this is a bit of a hack, but it allows us to separate error domains
+            Err(e) => Diff { files: vec![(FileModificationKind::Deletion, "ERROR".to_owned(), format!("error: {e}"))]},
+        };
         Ok(Some(CommitDetail { author, committer, parents, title, msg_detail, diff_parent }))
     }
     fn compute_diff(&self, commit: gix::Commit<'_>) -> Result<Diff, anyhow::Error> {
