@@ -178,8 +178,28 @@ impl State {
                     };
                     (FileModificationKind::Modification, location_str, diff_text)
                 },
-                gix::diff::tree_with_rewrites::Change::Rewrite { location, .. } => {
-                    (FileModificationKind::Rewrite, location.to_string().trim().to_owned(), String::new())
+                gix::diff::tree_with_rewrites::Change::Rewrite { location, source_id, id, .. } => {
+                    let location_str = location.to_string().trim().to_owned();
+                    let diff_text = if self.repo.find_object(*id)?.kind == gix::objs::Kind::Blob {
+                        let prev_blob = self.repo.find_blob(*source_id)?;
+                        let now_blob = self.repo.find_blob(*id)?;
+
+                        let interner = gix::diff::blob::intern::InternedInput::new(prev_blob.data.as_slice(), now_blob.data.as_slice());
+
+                        let diff_str_raw = gix::diff::blob::diff(
+                            gix::diff::blob::Algorithm::Myers,
+                            &interner,
+                            UnifiedDiff::new(
+                                &interner,
+                                ConsumeBinaryHunk::new(String::new(), "\n"),
+                                ContextSize::symmetrical(3),
+                            ),
+                        )?;
+                        format!("Changes for {location_str}\n{diff_str_raw}")
+                    } else {
+                        String::new()
+                    };
+                    (FileModificationKind::Rewrite, location_str, diff_text)
                 },
             };
             Ok(chg)
