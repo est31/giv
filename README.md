@@ -10,6 +10,14 @@ The tool builds on [gitoxide](https://github.com/GitoxideLabs/gitoxide) as well 
 cargo install git-viewer
 ```
 
+## Goals
+
+- UI that allows inspecting git changes
+
+## Non-goals
+
+- Changing state (push, commit, merge, rebase, stash, stash pop)
+
 ## Motivation
 
 ### gitk is the best
