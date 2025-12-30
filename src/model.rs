@@ -128,7 +128,7 @@ impl State {
         let parent = self.repo.find_commit(parent_id)?;
         let diff_options = None;
         let diff_changes = self.repo.diff_tree_to_tree(&parent.tree()?, &commit.tree()?, diff_options)?;
-        let files = diff_changes.iter().map(|chg| {
+        let mut files = diff_changes.iter().map(|chg| {
             let chg = match chg {
                 gix::diff::tree_with_rewrites::Change::Addition { location, .. } => {
                     (FileModificationKind::Addition, location.to_string().trim().to_owned())
@@ -146,6 +146,7 @@ impl State {
             Ok(chg)
         })
         .collect::<Result<Vec<_>, anyhow::Error>>()?;
+        files.sort_by_cached_key(|f| f.1.clone());
         Ok(Diff { files })
     }
     pub(crate) fn invalidate_caches(&mut self) {
