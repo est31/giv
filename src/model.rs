@@ -127,7 +127,7 @@ impl State {
         };
         let parent = self.repo.find_commit(parent_id)?;
         let diff_options = None;
-        let diff_changes = self.repo.diff_tree_to_tree(&commit.tree()?, &parent.tree()?, diff_options)?;
+        let diff_changes = self.repo.diff_tree_to_tree(&parent.tree()?, &commit.tree()?, diff_options)?;
         let files = diff_changes.iter().map(|chg| {
             let chg = match chg {
                 gix::diff::tree_with_rewrites::Change::Addition { location, .. } => {
