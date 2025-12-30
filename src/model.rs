@@ -175,7 +175,7 @@ impl State {
                         ContextSize::symmetrical(3),
                     ),
                 )?;
-                format!("Changes for {location_str}\n{diff_str_raw}")
+                diff_str_raw
             } else {
                 String::new()
             };
