@@ -129,80 +129,53 @@ impl State {
         let diff_options = None;
         let diff_changes = self.repo.diff_tree_to_tree(&parent.tree()?, &commit.tree()?, diff_options)?;
         let mut files = diff_changes.iter().map(|chg| {
-            let chg = match chg {
+            let (kind, location_str, prev_id_opt, now_id_opt) = match chg {
                 gix::diff::tree_with_rewrites::Change::Addition { location, id, .. } => {
                     let location_str = location.to_string().trim().to_owned();
-                    let diff_text = if self.repo.find_object(*id)?.kind == gix::objs::Kind::Blob {
-                        let now_blob = self.repo.find_blob(*id)?;
-
-                        let interner = gix::diff::blob::intern::InternedInput::new(&b""[..], now_blob.data.as_slice());
-
-                        let diff_str_raw = gix::diff::blob::diff(
-                            gix::diff::blob::Algorithm::Myers,
-                            &interner,
-                            UnifiedDiff::new(
-                                &interner,
-                                ConsumeBinaryHunk::new(String::new(), "\n"),
-                                ContextSize::symmetrical(3),
-                            ),
-                        )?;
-                        format!("Changes for {location_str}\n{diff_str_raw}")
-                    } else {
-                        String::new()
-                    };
-                    (FileModificationKind::Addition, location_str, diff_text)
+                    (FileModificationKind::Addition, location_str, None, Some(*id))
                 },
                 gix::diff::tree_with_rewrites::Change::Deletion { location, .. } => {
-                    (FileModificationKind::Deletion, location.to_string().trim().to_owned(), String::new())
+                    (FileModificationKind::Deletion, location.to_string().trim().to_owned(), None, None)
                 },
                 gix::diff::tree_with_rewrites::Change::Modification { location, previous_id, id, .. } => {
                     let location_str = location.to_string().trim().to_owned();
-                    let diff_text = if self.repo.find_object(*id)?.kind == gix::objs::Kind::Blob {
-                        let prev_blob = self.repo.find_blob(*previous_id)?;
-                        let now_blob = self.repo.find_blob(*id)?;
-
-                        let interner = gix::diff::blob::intern::InternedInput::new(prev_blob.data.as_slice(), now_blob.data.as_slice());
-
-                        let diff_str_raw = gix::diff::blob::diff(
-                            gix::diff::blob::Algorithm::Myers,
-                            &interner,
-                            UnifiedDiff::new(
-                                &interner,
-                                ConsumeBinaryHunk::new(String::new(), "\n"),
-                                ContextSize::symmetrical(3),
-                            ),
-                        )?;
-                        format!("Changes for {location_str}\n{diff_str_raw}")
-                    } else {
-                        String::new()
-                    };
-                    (FileModificationKind::Modification, location_str, diff_text)
+                    (FileModificationKind::Modification, location_str, Some(*previous_id), Some(*id))
                 },
                 gix::diff::tree_with_rewrites::Change::Rewrite { location, source_id, id, .. } => {
                     let location_str = location.to_string().trim().to_owned();
-                    let diff_text = if self.repo.find_object(*id)?.kind == gix::objs::Kind::Blob {
-                        let prev_blob = self.repo.find_blob(*source_id)?;
-                        let now_blob = self.repo.find_blob(*id)?;
-
-                        let interner = gix::diff::blob::intern::InternedInput::new(prev_blob.data.as_slice(), now_blob.data.as_slice());
-
-                        let diff_str_raw = gix::diff::blob::diff(
-                            gix::diff::blob::Algorithm::Myers,
-                            &interner,
-                            UnifiedDiff::new(
-                                &interner,
-                                ConsumeBinaryHunk::new(String::new(), "\n"),
-                                ContextSize::symmetrical(3),
-                            ),
-                        )?;
-                        format!("Changes for {location_str}\n{diff_str_raw}")
-                    } else {
-                        String::new()
-                    };
-                    (FileModificationKind::Rewrite, location_str, diff_text)
+                    (FileModificationKind::Rewrite, location_str, Some(*source_id), Some(*id))
                 },
             };
-            Ok(chg)
+            let diff_text = if let Some(id) = now_id_opt &&
+                    self.repo.find_object(id)?.kind == gix::objs::Kind::Blob
+            {
+
+                let now_blob = self.repo.find_blob(id)?;
+                let mut prev_blob = None;
+                let interner = if let Some(prev_id) = prev_id_opt {
+                    let prev_blob_ref = prev_blob.insert(self.repo.find_blob(prev_id)?);
+
+                    gix::diff::blob::intern::InternedInput::new(prev_blob_ref.data.as_slice(), now_blob.data.as_slice())
+                } else {
+
+                    gix::diff::blob::intern::InternedInput::new(b"".as_slice(), now_blob.data.as_slice())
+                };
+
+                let diff_str_raw = gix::diff::blob::diff(
+                    gix::diff::blob::Algorithm::Myers,
+                    &interner,
+                    UnifiedDiff::new(
+                        &interner,
+                        ConsumeBinaryHunk::new(String::new(), "\n"),
+                        ContextSize::symmetrical(3),
+                    ),
+                )?;
+                format!("Changes for {location_str}\n{diff_str_raw}")
+            } else {
+                String::new()
+            };
+
+            Ok((kind, location_str, diff_text))
         })
         .collect::<Result<Vec<_>, anyhow::Error>>()?;
         files.sort_by_cached_key(|f| f.1.clone());
