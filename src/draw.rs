@@ -55,6 +55,7 @@ impl State {
 
             let mut all_diff = Text::from(Vec::new());
             let files_lines = selected_commit.diff_parent.files.iter()
+                .filter(|(_kind, _path, diff)| !diff.trim().is_empty())
                 .map(|(kind, path, diff)| {
                     let st = Style::default();
                     let (kind_str, style) = match kind {
