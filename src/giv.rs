@@ -71,9 +71,9 @@ impl App {
                             }
                             self.state.invalidate_caches();
                         } else if key.code == KeyCode::Char('j') {
-                            self.state.diff_scroll_idx = self.state.diff_scroll_idx.saturating_sub(1);
-                        } else if key.code == KeyCode::Char('k') {
                             self.state.diff_scroll_idx += 1;
+                        } else if key.code == KeyCode::Char('k') {
+                            self.state.diff_scroll_idx = self.state.diff_scroll_idx.saturating_sub(1);
                         }
                     }
                     event::Event::FocusGained => (),

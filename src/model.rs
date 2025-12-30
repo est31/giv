@@ -21,6 +21,7 @@ pub(crate) struct CommitDetail {
     pub(crate) msg_detail: String,
     pub(crate) parents: Vec<(ObjectId, Prefix, String)>,
     pub(crate) diff_parent: Diff,
+    pub(crate) id: ObjectId,
 }
 
 pub(crate) enum FileModificationKind {
@@ -123,7 +124,7 @@ impl State {
             // TODO this is a bit of a hack, but it allows us to separate error domains
             Err(e) => Diff { files: vec![(FileModificationKind::Deletion, "ERROR".to_owned(), format!("error: {e}"))]},
         };
-        Ok(Some(CommitDetail { author, committer, parents, title, msg_detail, diff_parent }))
+        Ok(Some(CommitDetail { author, committer, parents, title, msg_detail, diff_parent, id }))
     }
     fn compute_diff(&self, commit: gix::Commit<'_>) -> Result<Diff, anyhow::Error> {
         let Some(parent_id) = commit.parent_ids().next() else {

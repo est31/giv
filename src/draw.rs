@@ -73,7 +73,7 @@ impl State {
             let paragraph = Paragraph::new(commit_descr_text)
                 .wrap(Wrap { trim: false })
                 .scroll((self.diff_scroll_idx as u16, 0));
-            let block_selected = Block::bordered();
+            let block_selected = Block::bordered().title(format!("Commit {}", selected_commit.id));
             frame.render_widget(paragraph.block(block_selected), commit_descr_area);
 
             let paragraph = Paragraph::new(files_lines)
