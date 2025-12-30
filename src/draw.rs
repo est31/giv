@@ -1,5 +1,5 @@
 use ratatui::{
-    Frame, layout::{Constraint, Layout}, style::Stylize, text::{Line, Span, Text}, widgets::{Block, Paragraph, Wrap}
+    Frame, layout::{Constraint, Layout}, style::{Style, Stylize}, text::{Line, Span, Text}, widgets::{Block, Paragraph, Wrap}
 };
 
 use super::State;
@@ -60,13 +60,14 @@ impl State {
 
             let files_lines = selected_commit.diff_parent.files.iter()
                 .map(|(kind, path)| {
-                    let kind_str = match kind {
-                        crate::model::FileModificationKind::Addition => 'A',
-                        crate::model::FileModificationKind::Deletion => 'D',
-                        crate::model::FileModificationKind::Modification => 'M',
-                        crate::model::FileModificationKind::Rewrite => 'R',
+                    let st = Style::default();
+                    let (kind_str, style) = match kind {
+                        crate::model::FileModificationKind::Addition => ('A', st.green()),
+                        crate::model::FileModificationKind::Deletion => ('D', st.red()),
+                        crate::model::FileModificationKind::Modification => ('M', st.yellow()),
+                        crate::model::FileModificationKind::Rewrite => ('R', st.yellow()),
                     };
-                    Line::from(format!("{kind_str} {path}"))
+                    Line::from(format!("{kind_str} {path}")).style(style)
                 })
                 .collect::<Vec<_>>();
 
