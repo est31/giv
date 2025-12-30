@@ -91,7 +91,19 @@ impl State {
             Ok(self.commits_shallow_cached.as_ref().unwrap())
         }
     }
-    pub(crate) fn get_selected_commit(&mut self) -> Result<Option<CommitDetail>, anyhow::Error> {
+    pub(crate) fn get_or_refresh_selected_commit(&mut self) -> Result<Option<&CommitDetail>, anyhow::Error> {
+        if self.selected_commit_cached.is_none() {
+            let selected_opt = self.get_selected_commit()?;
+            if let Some(selected) = selected_opt {
+                Ok(Some(self.selected_commit_cached.insert(selected)))
+            } else {
+                Ok(None)
+            }
+        } else {
+            Ok(self.selected_commit_cached.as_ref())
+        }
+    }
+    fn get_selected_commit(&mut self) -> Result<Option<CommitDetail>, anyhow::Error> {
         let Some(selection_idx) = self.selection_idx else {
             return Ok(None);
         };
@@ -188,5 +200,6 @@ impl State {
     }
     pub(crate) fn invalidate_caches(&mut self) {
         self.commits_shallow_cached = None;
+        self.selected_commit_cached = None;
     }
 }

@@ -6,7 +6,7 @@ use gix::Repository;
 use ratatui::{
     DefaultTerminal, crossterm::event,
 };
-use model::CommitShallow;
+use model::{CommitShallow, CommitDetail};
 
 mod draw;
 mod model;
@@ -15,6 +15,7 @@ struct State {
     repo: Repository,
     wanted_commit_list_count: usize,
     commits_shallow_cached: Option<Vec<CommitShallow>>,
+    selected_commit_cached: Option<CommitDetail>,
     selection_idx: Option<usize>,
     diff_scroll_idx: usize,
 }
@@ -30,6 +31,7 @@ impl State {
             repo: gix::open(".")?,
             wanted_commit_list_count: 10,
             commits_shallow_cached: None,
+            selected_commit_cached: None,
             selection_idx: None,
             diff_scroll_idx: 0,
         };

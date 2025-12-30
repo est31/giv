@@ -33,7 +33,8 @@ impl State {
         let block_times = Block::bordered();
         frame.render_widget(paragraph.block(block_times), times_area);
 
-        if let Some(selected_commit) = self.get_selected_commit()
+        let diff_scroll_idx = self.diff_scroll_idx;
+        if let Some(selected_commit) = self.get_or_refresh_selected_commit()
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?
         {
             let [commit_descr_area, files_area] = Layout::horizontal([Constraint::Fill(3), Constraint::Fill(1)]).areas(diff_area);
@@ -48,10 +49,10 @@ impl State {
                 line_with_kind("Committer: ", selected_commit.committer.format_with_time()),
                 line_with_kind("Parents: ", parents_str),
                 Line::from(""),
-                Line::from(selected_commit.title),
+                Line::from(selected_commit.title.clone()),
                 Line::from(""),
             ]);
-            commit_descr_text.extend(Text::raw(selected_commit.msg_detail));
+            commit_descr_text.extend(Text::raw(selected_commit.msg_detail.clone()));
 
             let mut all_diff = Text::from(Vec::new());
             let files_lines = selected_commit.diff_parent.files.iter()
@@ -76,7 +77,7 @@ impl State {
 
             let paragraph = Paragraph::new(commit_descr_text)
                 .wrap(Wrap { trim: false })
-                .scroll((self.diff_scroll_idx as u16, 0));
+                .scroll((diff_scroll_idx as u16, 0));
             let block_selected = Block::bordered().title(format!("Commit {}", selected_commit.id));
             frame.render_widget(paragraph.block(block_selected), commit_descr_area);
 
