@@ -1,8 +1,11 @@
 [package]
 name = "git-viewer"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2024"
 license = "MIT OR Apache-2.0"
+description = "Pure Rust gitk clone for the terminal"
+repository = "https://github.com/est31/giv"
+homepage = "https://github.com/est31/giv"
 readme = "README.md"
 rust-version = "1.88"
 
