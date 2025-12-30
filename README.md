@@ -1,6 +1,8 @@
 # gitv
 
-pure Rust `gitk` clone for the terminal
+Pure Rust `gitk` clone for the terminal
+
+The tool builds on [gitoxide](https://github.com/GitoxideLabs/gitoxide) as well as [ratatui](https://github.com/ratatui/ratatui).
 
 ## Motivation
 
@@ -46,6 +48,10 @@ scratch my itch in precisely the way I want it to be scratched.
 - [gitj](https://github.com/chjj/gitj) gitk in your terminal (unmaintained)
 - [gitt](https://github.com/medwards/gitt) - Git repository viewer for your terminal
 - [gitui](https://github.com/gitui-org/gitui) - Blazing 💥 fast terminal-ui for git
+
+## MSRV policy
+
+We depend on a bunch of components, but we try to support rust versions at least 6 releases back.
 
 ### License
 [license]: #license
