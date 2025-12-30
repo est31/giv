@@ -1,4 +1,4 @@
-use gix::{ObjectId, actor::SignatureRef, hash::Prefix};
+use gix::{ObjectId, actor::SignatureRef, diff::blob::{UnifiedDiff, unified_diff::{ConsumeBinaryHunk, ContextSize}}, hash::Prefix};
 
 use crate::State;
 
@@ -31,7 +31,7 @@ pub(crate) enum FileModificationKind {
 }
 
 pub(crate) struct Diff {
-    pub(crate) files: Vec<(FileModificationKind, String)>,
+    pub(crate) files: Vec<(FileModificationKind, String, String)>,
 }
 
 impl std::fmt::Display for Signature {
@@ -130,17 +130,56 @@ impl State {
         let diff_changes = self.repo.diff_tree_to_tree(&parent.tree()?, &commit.tree()?, diff_options)?;
         let mut files = diff_changes.iter().map(|chg| {
             let chg = match chg {
-                gix::diff::tree_with_rewrites::Change::Addition { location, .. } => {
-                    (FileModificationKind::Addition, location.to_string().trim().to_owned())
+                gix::diff::tree_with_rewrites::Change::Addition { location, id, .. } => {
+                    let location_str = location.to_string().trim().to_owned();
+                    let diff_text = if self.repo.find_object(*id)?.kind == gix::objs::Kind::Blob {
+                        let now_blob = self.repo.find_blob(*id)?;
+
+                        let interner = gix::diff::blob::intern::InternedInput::new(&b""[..], now_blob.data.as_slice());
+
+                        let diff_str_raw = gix::diff::blob::diff(
+                            gix::diff::blob::Algorithm::Myers,
+                            &interner,
+                            UnifiedDiff::new(
+                                &interner,
+                                ConsumeBinaryHunk::new(String::new(), "\n"),
+                                ContextSize::symmetrical(3),
+                            ),
+                        )?;
+                        format!("Changes for {location_str}\n{diff_str_raw}")
+                    } else {
+                        String::new()
+                    };
+                    (FileModificationKind::Addition, location_str, diff_text)
                 },
                 gix::diff::tree_with_rewrites::Change::Deletion { location, .. } => {
-                    (FileModificationKind::Deletion, location.to_string().trim().to_owned())
+                    (FileModificationKind::Deletion, location.to_string().trim().to_owned(), String::new())
                 },
-                gix::diff::tree_with_rewrites::Change::Modification { location, .. } => {
-                    (FileModificationKind::Modification, location.to_string().trim().to_owned())
+                gix::diff::tree_with_rewrites::Change::Modification { location, previous_id, id, .. } => {
+                    let location_str = location.to_string().trim().to_owned();
+                    let diff_text = if self.repo.find_object(*id)?.kind == gix::objs::Kind::Blob {
+                        let prev_blob = self.repo.find_blob(*previous_id)?;
+                        let now_blob = self.repo.find_blob(*id)?;
+
+                        let interner = gix::diff::blob::intern::InternedInput::new(prev_blob.data.as_slice(), now_blob.data.as_slice());
+
+                        let diff_str_raw = gix::diff::blob::diff(
+                            gix::diff::blob::Algorithm::Myers,
+                            &interner,
+                            UnifiedDiff::new(
+                                &interner,
+                                ConsumeBinaryHunk::new(String::new(), "\n"),
+                                ContextSize::symmetrical(3),
+                            ),
+                        )?;
+                        format!("Changes for {location_str}\n{diff_str_raw}")
+                    } else {
+                        String::new()
+                    };
+                    (FileModificationKind::Modification, location_str, diff_text)
                 },
                 gix::diff::tree_with_rewrites::Change::Rewrite { location, .. } => {
-                    (FileModificationKind::Rewrite, location.to_string().trim().to_owned())
+                    (FileModificationKind::Rewrite, location.to_string().trim().to_owned(), String::new())
                 },
             };
             Ok(chg)

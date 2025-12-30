@@ -43,7 +43,7 @@ impl State {
             let parents_str = selected_commit.parents.iter().map(|(_oid, oid_prefix, ttl)| format!("{oid_prefix} {ttl}"))
                 .collect::<Vec<String>>();
             let parents_str = parents_str.join(", ");
-            let mut text = Text::from(vec![
+            let mut commit_descr_text = Text::from(vec![
                 line_with_kind("Author: ", selected_commit.author.format_with_time()),
                 line_with_kind("Committer: ", selected_commit.committer.format_with_time()),
                 line_with_kind("Parents: ", parents_str),
@@ -51,15 +51,11 @@ impl State {
                 Line::from(selected_commit.title),
                 Line::from(""),
             ]);
-            text.extend(Text::raw(selected_commit.msg_detail));
+            commit_descr_text.extend(Text::raw(selected_commit.msg_detail));
 
-            let paragraph = Paragraph::new(text)
-                .wrap(Wrap { trim: true });
-            let block_selected = Block::bordered();
-            frame.render_widget(paragraph.block(block_selected), commit_descr_area);
-
+            let mut all_diff = String::new();
             let files_lines = selected_commit.diff_parent.files.iter()
-                .map(|(kind, path)| {
+                .map(|(kind, path, diff)| {
                     let st = Style::default();
                     let (kind_str, style) = match kind {
                         crate::model::FileModificationKind::Addition => ('A', st.green()),
@@ -67,9 +63,17 @@ impl State {
                         crate::model::FileModificationKind::Modification => ('M', st.yellow()),
                         crate::model::FileModificationKind::Rewrite => ('R', st.yellow()),
                     };
+                    all_diff += diff;
                     Line::from(format!("{kind_str} {path}")).style(style)
                 })
                 .collect::<Vec<_>>();
+
+            commit_descr_text.extend(Text::raw(all_diff));
+
+            let paragraph = Paragraph::new(commit_descr_text)
+                .wrap(Wrap { trim: true });
+            let block_selected = Block::bordered();
+            frame.render_widget(paragraph.block(block_selected), commit_descr_area);
 
             let paragraph = Paragraph::new(files_lines)
                 .wrap(Wrap { trim: true });
