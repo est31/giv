@@ -1,4 +1,4 @@
-# gitv
+# giv
 
 Pure Rust `gitk` clone for the terminal
 
