@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+**'
+  pull_request:
+
+env:
+  RUSTFLAGS: -D warnings
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain:
+          - stable-x86_64-pc-windows-msvc
+          - stable-aarch64-apple-darwin
+          - stable-x86_64-unknown-linux-gnu
+          - beta-x86_64-unknown-linux-gnu
+          - nightly-x86_64-unknown-linux-gnu
+        include:
+          - toolchain: stable-x86_64-pc-windows-msvc
+            os: windows-latest
+          - toolchain: stable-aarch64-apple-darwin
+            os: macos-latest
+          - toolchain: stable-x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+          - toolchain: beta-x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+          - toolchain: nightly-x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+
+    name: ${{ matrix.toolchain }}
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: rust-toolchain ( ${{ matrix.toolchain }} )
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+
+      - name: '`cargo test`'
+        run: cargo test --no-fail-fast --verbose --locked ${{ matrix.args }}
+
+      - name: '`cargo build`'
+        run: cargo build --verbose --locked
+
+      - name: '`cargo install --debug --locked`'
+        run: cargo install --path . --debug --verbose --locked
+
+      - name: '`cargo install --debug`'
+        run: cargo install --path . --debug --verbose
