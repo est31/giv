@@ -16,6 +16,7 @@ struct State {
     wanted_commit_list_count: usize,
     commits_shallow_cached: Option<Vec<CommitShallow>>,
     selection_idx: Option<usize>,
+    diff_scroll_idx: usize,
 }
 
 struct App {
@@ -30,6 +31,7 @@ impl State {
             wanted_commit_list_count: 10,
             commits_shallow_cached: None,
             selection_idx: None,
+            diff_scroll_idx: 0,
         };
         Ok(state)
     }
@@ -68,6 +70,10 @@ impl App {
                                 self.state.selection_idx = Some(0);
                             }
                             self.state.invalidate_caches();
+                        } else if key.code == KeyCode::Char('j') {
+                            self.state.diff_scroll_idx = self.state.diff_scroll_idx.saturating_sub(1);
+                        } else if key.code == KeyCode::Char('k') {
+                            self.state.diff_scroll_idx += 1;
                         }
                     }
                     event::Event::FocusGained => (),

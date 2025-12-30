@@ -71,7 +71,8 @@ impl State {
             commit_descr_text.extend(Text::raw(all_diff));
 
             let paragraph = Paragraph::new(commit_descr_text)
-                .wrap(Wrap { trim: false });
+                .wrap(Wrap { trim: false })
+                .scroll((self.diff_scroll_idx as u16, 0));
             let block_selected = Block::bordered();
             frame.render_widget(paragraph.block(block_selected), commit_descr_area);
 
