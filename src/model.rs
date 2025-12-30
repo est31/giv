@@ -15,7 +15,6 @@ pub(crate) struct Signature {
 }
 
 pub(crate) struct CommitDetail {
-    pub(crate) commit: String,
     pub(crate) author: Signature,
     pub(crate) committer: Signature,
     pub(crate) title: String,
@@ -120,8 +119,7 @@ impl State {
             })
             .collect::<Result<Vec<_>, anyhow::Error>>()?;
         let diff_parent = self.compute_diff(commit)?;
-        let commit = String::new();
-        Ok(Some(CommitDetail { commit, author, committer, parents, title, msg_detail, diff_parent }))
+        Ok(Some(CommitDetail { author, committer, parents, title, msg_detail, diff_parent }))
     }
     fn compute_diff(&self, commit: gix::Commit<'_>) -> Result<Diff, anyhow::Error> {
         let Some(parent_id) = commit.parent_ids().next() else {
