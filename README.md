@@ -4,6 +4,12 @@ Pure Rust `gitk` clone for the terminal
 
 The tool builds on [gitoxide](https://github.com/GitoxideLabs/gitoxide) as well as [ratatui](https://github.com/ratatui/ratatui).
 
+## Installation
+
+```
+cargo install git-viewer
+```
+
 ## Motivation
 
 ### gitk is the best
