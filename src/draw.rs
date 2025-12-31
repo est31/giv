@@ -74,7 +74,7 @@ impl State {
                     };
                     all_diff.extend(Text::from(vec![
                         Line::from(""),
-                        Line::styled(dash_wrap(path), Style::default().white().on_gray())
+                        Line::styled(dash_wrap(path), Style::default().white().on_dark_gray())
                     ]));
                     all_diff.extend(Text::raw(diff));
                     Line::from(format!("{kind_str} {path}")).style(style)
