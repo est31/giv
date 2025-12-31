@@ -73,7 +73,8 @@ impl State {
                         crate::model::FileModificationKind::Rewrite => ('R', st.yellow()),
                     };
                     all_diff.extend(Text::from(vec![
-                        Line::styled(dash_wrap(path), Style::default().on_gray())
+                        Line::from(""),
+                        Line::styled(dash_wrap(path), Style::default().white().on_gray())
                     ]));
                     all_diff.extend(Text::raw(diff));
                     Line::from(format!("{kind_str} {path}")).style(style)
