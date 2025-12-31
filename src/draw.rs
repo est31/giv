@@ -1,5 +1,5 @@
 use ratatui::{
-    Frame, layout::{Constraint, Layout}, style::{Style, Stylize}, text::{Line, Span, Text}, widgets::{Block, Paragraph, Wrap}
+    Frame, layout::{Constraint, Layout, Rect}, style::{Style, Stylize}, text::{Line, Span, Text}, widgets::{Block, Paragraph, Wrap}
 };
 
 use super::State;
@@ -18,6 +18,12 @@ impl State {
 
         self.last_log_area = log_area;
 
+        self.draw_log_area(frame, log_area)?;
+        self.draw_selected_commit_area(frame, diff_area)?;
+
+        Ok(())
+    }
+    fn draw_log_area(&mut self, frame: &mut Frame, log_area: Rect) -> Result<(), std::io::Error> {
         let commits_scroll_idx = self.commits_scroll_idx as u16;
 
         let (lines, authors, times) = self.commits_authors_times_lines()
@@ -40,6 +46,9 @@ impl State {
         let block_times = Block::bordered();
         frame.render_widget(paragraph.block(block_times), times_area);
 
+        Ok(())
+    }
+    fn draw_selected_commit_area(&mut self, frame: &mut Frame, diff_area: Rect) -> Result<(), std::io::Error> {
         let diff_scroll_idx = self.diff_scroll_idx;
         if let Some(selected_commit) = self.get_or_refresh_selected_commit()
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?
