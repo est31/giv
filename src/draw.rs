@@ -8,7 +8,7 @@ impl State {
     pub(crate) fn draw(&mut self, frame: &mut Frame) -> Result<(), std::io::Error> {
         let area = frame.area();
 
-        let [log_area, diff_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1)]).areas(area);
+        let [log_area, diff_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(2)]).areas(area);
 
         // We allocate a bit more commits here than needed but this is ok
         if self.wanted_commit_list_count != log_area.height as usize + self.commits_scroll_idx {
