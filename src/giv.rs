@@ -74,6 +74,7 @@ impl App {
                     // Quit the application using q
                     return ControlFlow::Break(());
                 } else if key.code == KeyCode::Down {
+                    // Scroll down log area
                     if let Some(idx) = self.state.selection_idx {
                         self.state.selection_idx = Some(idx + 1);
                     } else {
@@ -88,6 +89,7 @@ impl App {
                     }
                     self.state.invalidate_caches();
                 } else if key.code == KeyCode::Up {
+                    // Scroll up log area
                     if let Some(idx) = self.state.selection_idx {
                         self.state.selection_idx = Some(idx.saturating_sub(1));
                     } else {
@@ -102,6 +104,7 @@ impl App {
                     }
                     self.state.invalidate_caches();
                 } else if key.code == KeyCode::PageDown {
+                    // Scroll down log area alot
                     if let Some(idx) = self.state.selection_idx {
                         self.state.selection_idx = Some(idx + log_h as usize);
                     } else {
@@ -109,6 +112,7 @@ impl App {
                     }
                     self.state.commits_scroll_idx += log_h as usize;
                 } else if key.code == KeyCode::PageUp {
+                    // Scroll up log area alot
                     if let Some(idx) = self.state.selection_idx {
                         self.state.selection_idx = Some(idx.saturating_sub(log_h as usize));
                     } else {
@@ -116,8 +120,10 @@ impl App {
                     }
                     self.state.commits_scroll_idx = self.state.commits_scroll_idx.saturating_sub(log_h as usize);
                 } else if key.code == KeyCode::Char('j') {
+                    // Scroll down commit area
                     self.state.diff_scroll_idx += 1;
                 } else if key.code == KeyCode::Char('k') {
+                    // Scroll up commit area
                     self.state.diff_scroll_idx = self.state.diff_scroll_idx.saturating_sub(1);
                 }
             }
