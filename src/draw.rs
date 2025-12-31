@@ -71,6 +71,7 @@ impl State {
             commit_descr_text.extend(Text::raw(selected_commit.msg_detail.clone()));
 
             let mut all_diff = Text::from(Vec::new());
+            let mut bold_already_set = false;
             let files_lines = selected_commit.diff_parent.files.iter()
                 .filter(|(_kind, _path, diff)| !diff.trim().is_empty())
                 .map(|(kind, path, diff)| {
@@ -86,6 +87,16 @@ impl State {
                         Line::styled(dash_wrap(path), Style::default().white().on_dark_gray())
                     ]));
                     all_diff.extend(Text::raw(diff));
+
+                    let style = if commit_descr_text.lines.len() < diff_scroll_idx
+                        && all_diff.lines.len() + commit_descr_text.lines.len() >= diff_scroll_idx
+                        && !bold_already_set
+                    {
+                        bold_already_set = true;
+                        style.bold()
+                    } else {
+                        style
+                    };
                     Line::from(format!("{kind_str} {path}")).style(style)
                 })
                 .collect::<Vec<_>>();
