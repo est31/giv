@@ -108,7 +108,7 @@ impl State {
                 Line::from(""),
                 Line::styled(dash_wrap(path), Style::default().white().on_dark_gray())
             ]);
-            diff_for_file.extend(Text::raw(diff.clone()));
+            diff_for_file.extend(style_text_for_diff(diff));
 
             let style = if len_ctr + diff_for_file.lines.len() >= diff_scroll_idx
                 && !bold_already_set
@@ -184,6 +184,7 @@ impl State {
     }
 }
 
+/// Wrap the given string in dashes, i.e. `---- abc ----`
 fn dash_wrap(s: &str) -> String {
     let pad_to_len = 80usize;
     let padding_len = pad_to_len.saturating_sub(s.len());
@@ -192,4 +193,22 @@ fn dash_wrap(s: &str) -> String {
     // Compute number again as padding_len could be odd
     let pad_right = padding_len - pad_left;
     format!("{nothing:->pad_left$} {s} {nothing:->pad_right$}")
+}
+
+fn style_text_for_diff(diff: &str) -> Text<'static> {
+    let lines = diff.lines()
+        .map(|line| {
+            let st = if line.starts_with('+') {
+                Style::default().green()
+            } else if line.starts_with('-') {
+                Style::default().red()
+            } else if line.starts_with("@@") {
+                Style::default().blue()
+            } else {
+                Style::default()
+            };
+            Line::from(line.to_owned()).style(st)
+        })
+        .collect::<Vec<_>>();
+    Text::from(lines)
 }
