@@ -18,6 +18,17 @@ cargo install git-viewer
 
 - Changing state (push, commit, merge, rebase, stash, stash pop)
 
+## TODO
+
+- search commit messages
+- search in diff of commit
+- show full commit graph, not just first parent
+- color commit view
+- CLI args similar to gitk: both for path as well as commit
+- show tags/branches
+- show dirty state as separate 'commit'
+- self-documenting controls
+
 ## Motivation
 
 ### gitk is the best
