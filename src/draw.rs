@@ -86,7 +86,7 @@ impl State {
             && !bold_already_set
         {
             bold_already_set = true;
-            Style::default().bold()
+            Style::default().bold().on_dark_gray()
         } else {
             Style::default()
         };
@@ -115,7 +115,7 @@ impl State {
                 && !bold_already_set
             {
                 bold_already_set = true;
-                style.bold()
+                style.bold().on_dark_gray()
             } else {
                 style
             };
