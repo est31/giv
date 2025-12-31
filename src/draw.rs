@@ -82,7 +82,7 @@ impl State {
 
         let mut bold_already_set = false;
 
-        let st = if commit_descr_text.lines.len() >= diff_scroll_idx
+        let st = if commit_descr_text.lines.len() > diff_scroll_idx
             && !bold_already_set
         {
             bold_already_set = true;
@@ -111,7 +111,7 @@ impl State {
             diff_for_file.extend(style_text_for_diff(diff));
             diff_for_file.extend([Line::from("")]);
 
-            let style = if len_ctr + diff_for_file.lines.len() >= diff_scroll_idx
+            let style = if len_ctr + diff_for_file.lines.len() > diff_scroll_idx
                 && !bold_already_set
             {
                 bold_already_set = true;
