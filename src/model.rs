@@ -28,7 +28,7 @@ pub(crate) enum FileModificationKind {
     Addition,
     Deletion,
     Modification,
-    Rewrite,
+    Rewrite(String),
 }
 
 pub(crate) struct Diff {
@@ -156,9 +156,10 @@ impl State {
                     let location_str = location.to_string().trim().to_owned();
                     (FileModificationKind::Modification, location_str, Some(*previous_id), Some(*id))
                 },
-                gix::diff::tree_with_rewrites::Change::Rewrite { location, source_id, id, .. } => {
+                gix::diff::tree_with_rewrites::Change::Rewrite { source_location, location, source_id, id, .. } => {
+                    let source_location_str = source_location.to_string().trim().to_owned();
                     let location_str = location.to_string().trim().to_owned();
-                    (FileModificationKind::Rewrite, location_str, Some(*source_id), Some(*id))
+                    (FileModificationKind::Rewrite(source_location_str), location_str, Some(*source_id), Some(*id))
                 },
             };
             let diff_text = if let Some(id) = now_id_opt &&

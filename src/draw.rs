@@ -96,18 +96,24 @@ impl State {
         texts.push((Line::from("Description").style(st), commit_descr_text));
 
         for (kind, path, diff) in selected_commit.diff_parent.files.iter()
-            .filter(|(_kind, _path, diff)| !diff.trim().is_empty())
+            .filter(|(kind, _path, diff)|
+                matches!(kind, crate::model::FileModificationKind::Rewrite(_)) || !diff.trim().is_empty()
+            )
         {
             let st = Style::default();
             let (kind_str, style) = match kind {
                 crate::model::FileModificationKind::Addition => ('A', st.green()),
                 crate::model::FileModificationKind::Deletion => ('D', st.red()),
                 crate::model::FileModificationKind::Modification => ('M', st.yellow()),
-                crate::model::FileModificationKind::Rewrite => ('R', st.yellow()),
+                crate::model::FileModificationKind::Rewrite(_) => ('R', st.yellow()),
             };
             let mut diff_for_file = Text::from(vec![
                 Line::styled(dash_wrap(path), Style::default().white().on_dark_gray())
             ]);
+            if let crate::model::FileModificationKind::Rewrite(source_loc) = kind {
+                let renamed_line = Line::styled(format!("Renamed from: {source_loc}"), Style::default().white().on_dark_gray());
+                diff_for_file.extend(Text::from(vec![renamed_line]));
+            }
             diff_for_file.extend(style_text_for_diff(diff));
             diff_for_file.extend([Line::from("")]);
 
