@@ -28,6 +28,8 @@ cargo install git-viewer
 - show tags/branches
 - show dirty state as separate 'commit'
 - self-documenting controls
+- more isolated error domain for submodule updates and don't error out
+- don't support scrolling past first commit in listh
 
 ## Motivation
 
