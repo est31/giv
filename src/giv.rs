@@ -67,6 +67,7 @@ impl App {
         Ok(())
     }
     fn handle_event(&mut self, event: event::Event) -> ControlFlow<(), ()> {
+        let log_h = self.state.last_log_area.height.saturating_sub(2);
         match event {
             event::Event::Key(key) => {
                 if key.code == KeyCode::Char('q') || key.code == KeyCode::Esc {
@@ -81,8 +82,7 @@ impl App {
                     if !self.state.last_log_area.is_empty() {
                         // Scroll down if we are at the bottom
                         let selection_idx = self.state.selection_idx.unwrap();
-                        let h = self.state.last_log_area.height.saturating_sub(2);
-                        if selection_idx >= self.state.commits_scroll_idx + h as usize {
+                        if selection_idx >= self.state.commits_scroll_idx + log_h as usize {
                             self.state.commits_scroll_idx += 1;
                         }
                     }
@@ -101,8 +101,20 @@ impl App {
                         }
                     }
                     self.state.invalidate_caches();
-                } else if key.code == KeyCode::Down {
-                } else if key.code == KeyCode::Up {
+                } else if key.code == KeyCode::PageDown {
+                    if let Some(idx) = self.state.selection_idx {
+                        self.state.selection_idx = Some(idx + log_h as usize);
+                    } else {
+                        self.state.selection_idx = Some(0);
+                    }
+                    self.state.commits_scroll_idx += log_h as usize;
+                } else if key.code == KeyCode::PageUp {
+                    if let Some(idx) = self.state.selection_idx {
+                        self.state.selection_idx = Some(idx.saturating_sub(log_h as usize));
+                    } else {
+                        self.state.selection_idx = Some(0);
+                    }
+                    self.state.commits_scroll_idx = self.state.commits_scroll_idx.saturating_sub(log_h as usize);
                 } else if key.code == KeyCode::Char('j') {
                     self.state.diff_scroll_idx += 1;
                 } else if key.code == KeyCode::Char('k') {
