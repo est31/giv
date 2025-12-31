@@ -4,6 +4,11 @@ use ratatui::{
 
 use super::State;
 
+#[derive(Clone)]
+pub(crate) struct RenderedDiff {
+    pub(crate) texts: Vec<(Line<'static>, Text<'static>)>,
+}
+
 impl State {
     pub(crate) fn draw(&mut self, frame: &mut Frame) -> Result<(), std::io::Error> {
         let area = frame.area();
@@ -48,60 +53,101 @@ impl State {
 
         Ok(())
     }
+    fn render_commit_area(&mut self, _diff_area: Rect) -> Result<RenderedDiff, std::io::Error> {
+        let diff_scroll_idx = self.diff_scroll_idx;
+        let Some(selected_commit) = self.get_or_refresh_selected_commit()
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?
+        else {
+            return Ok(RenderedDiff { texts: vec![] });
+        };
+
+        let mut texts = Vec::new();
+
+        fn line_with_kind<'a>(kind: &'a str, s: String) -> Line<'a> {
+            Line::from(vec![Span::from(kind).bold(), Span::from(s)])
+        }
+        let parents_str = selected_commit.parents.iter().map(|(_oid, oid_prefix, ttl)| format!("{oid_prefix} {ttl}"))
+            .collect::<Vec<String>>();
+        let parents_str = parents_str.join(", ");
+        let mut commit_descr_text = Text::from(vec![
+            line_with_kind("Author: ", selected_commit.author.format_with_time()),
+            line_with_kind("Committer: ", selected_commit.committer.format_with_time()),
+            line_with_kind("Parents: ", parents_str),
+            Line::from(""),
+            Line::from(selected_commit.title.clone()),
+            Line::from(""),
+        ]);
+        commit_descr_text.extend(Text::raw(selected_commit.msg_detail.clone()));
+
+        let mut bold_already_set = false;
+
+        let st = if commit_descr_text.lines.len() >= diff_scroll_idx
+            && !bold_already_set
+        {
+            bold_already_set = true;
+            Style::default().bold()
+        } else {
+            Style::default()
+        };
+
+        let mut len_ctr = commit_descr_text.lines.len();
+
+        texts.push((Line::from("Description").style(st), commit_descr_text));
+
+        for (kind, path, diff) in selected_commit.diff_parent.files.iter()
+            .filter(|(_kind, _path, diff)| !diff.trim().is_empty())
+        {
+            let st = Style::default();
+            let (kind_str, style) = match kind {
+                crate::model::FileModificationKind::Addition => ('A', st.green()),
+                crate::model::FileModificationKind::Deletion => ('D', st.red()),
+                crate::model::FileModificationKind::Modification => ('M', st.yellow()),
+                crate::model::FileModificationKind::Rewrite => ('R', st.yellow()),
+            };
+            let mut diff_for_file = Text::from(vec![
+                Line::from(""),
+                Line::styled(dash_wrap(path), Style::default().white().on_dark_gray())
+            ]);
+            diff_for_file.extend(Text::raw(diff.clone()));
+
+            let style = if len_ctr + diff_for_file.lines.len() >= diff_scroll_idx
+                && !bold_already_set
+            {
+                bold_already_set = true;
+                style.bold()
+            } else {
+                style
+            };
+            len_ctr += diff_for_file.lines.len();
+
+            let index_line = Line::from(format!("{kind_str} {path}")).style(style);
+            texts.push((index_line, diff_for_file));
+        }
+
+        Ok(RenderedDiff { texts })
+    }
     fn draw_selected_commit_area(&mut self, frame: &mut Frame, diff_area: Rect) -> Result<(), std::io::Error> {
         let diff_scroll_idx = self.diff_scroll_idx;
-        if let Some(selected_commit) = self.get_or_refresh_selected_commit()
+        let rendered_diff = self.render_commit_area(diff_area)?;
+        self.last_rendered_diff = Some(rendered_diff.clone());
+
+        let Some(selected_commit) = self.get_or_refresh_selected_commit()
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?
-        {
-            let [commit_descr_area, files_area] = Layout::horizontal([Constraint::Fill(3), Constraint::Fill(1)]).areas(diff_area);
-            fn line_with_kind<'a>(kind: &'a str, s: String) -> Line<'a> {
-                Line::from(vec![Span::from(kind).bold(), Span::from(s)])
-            }
-            let parents_str = selected_commit.parents.iter().map(|(_oid, oid_prefix, ttl)| format!("{oid_prefix} {ttl}"))
-                .collect::<Vec<String>>();
-            let parents_str = parents_str.join(", ");
-            let mut commit_descr_text = Text::from(vec![
-                line_with_kind("Author: ", selected_commit.author.format_with_time()),
-                line_with_kind("Committer: ", selected_commit.committer.format_with_time()),
-                line_with_kind("Parents: ", parents_str),
-                Line::from(""),
-                Line::from(selected_commit.title.clone()),
-                Line::from(""),
-            ]);
-            commit_descr_text.extend(Text::raw(selected_commit.msg_detail.clone()));
+        else {
+            return Ok(());
+        };
 
-            let mut all_diff = Text::from(Vec::new());
-            let mut bold_already_set = false;
-            let files_lines = selected_commit.diff_parent.files.iter()
-                .filter(|(_kind, _path, diff)| !diff.trim().is_empty())
-                .map(|(kind, path, diff)| {
-                    let st = Style::default();
-                    let (kind_str, style) = match kind {
-                        crate::model::FileModificationKind::Addition => ('A', st.green()),
-                        crate::model::FileModificationKind::Deletion => ('D', st.red()),
-                        crate::model::FileModificationKind::Modification => ('M', st.yellow()),
-                        crate::model::FileModificationKind::Rewrite => ('R', st.yellow()),
-                    };
-                    all_diff.extend(Text::from(vec![
-                        Line::from(""),
-                        Line::styled(dash_wrap(path), Style::default().white().on_dark_gray())
-                    ]));
-                    all_diff.extend(Text::raw(diff));
+        let [commit_descr_area, files_area] = Layout::horizontal([Constraint::Fill(3), Constraint::Fill(1)]).areas(diff_area);
 
-                    let style = if commit_descr_text.lines.len() < diff_scroll_idx
-                        && all_diff.lines.len() + commit_descr_text.lines.len() >= diff_scroll_idx
-                        && !bold_already_set
-                    {
-                        bold_already_set = true;
-                        style.bold()
-                    } else {
-                        style
-                    };
-                    Line::from(format!("{kind_str} {path}")).style(style)
-                })
+        if rendered_diff.texts.len() > 0 {
+            let files_lines = rendered_diff.texts.iter()
+                .map(|l| l.0.clone())
                 .collect::<Vec<_>>();
-
-            commit_descr_text.extend(all_diff);
+            let commit_descr_text = rendered_diff.texts.into_iter()
+                .fold(Text::from(Vec::new()), |mut t_a, (_l_b, t_b)| {
+                    t_a.extend(t_b);
+                    t_a
+                });
 
             let paragraph = Paragraph::new(commit_descr_text)
                 .wrap(Wrap { trim: false })

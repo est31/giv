@@ -8,17 +8,25 @@ use ratatui::{
 };
 use model::{CommitShallow, CommitDetail};
 
-mod draw;
+use crate::draw::RenderedDiff;
+
 mod model;
+mod draw;
 
 struct State {
     repo: Repository,
+
     wanted_commit_list_count: usize,
+
+    // Model caches
     commits_shallow_cached: Option<Vec<CommitShallow>>,
     selected_commit_cached: Option<CommitDetail>,
+
     selection_idx: Option<usize>,
     diff_scroll_idx: usize,
     commits_scroll_idx: usize,
+
+    last_rendered_diff: Option<RenderedDiff>,
     last_log_area: Rect,
 }
 
@@ -37,6 +45,7 @@ impl State {
             selection_idx: None,
             diff_scroll_idx: 0,
             commits_scroll_idx: 0,
+            last_rendered_diff: None,
             last_log_area: Rect::new(0, 0, 0, 0),
         };
         Ok(state)
