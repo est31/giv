@@ -78,6 +78,7 @@ impl State {
             Line::from(""),
         ]);
         commit_descr_text.extend(Text::raw(selected_commit.msg_detail.clone()));
+        commit_descr_text.extend([Line::from("")]);
 
         let mut bold_already_set = false;
 
@@ -105,10 +106,10 @@ impl State {
                 crate::model::FileModificationKind::Rewrite => ('R', st.yellow()),
             };
             let mut diff_for_file = Text::from(vec![
-                Line::from(""),
                 Line::styled(dash_wrap(path), Style::default().white().on_dark_gray())
             ]);
             diff_for_file.extend(style_text_for_diff(diff));
+            diff_for_file.extend([Line::from("")]);
 
             let style = if len_ctr + diff_for_file.lines.len() >= diff_scroll_idx
                 && !bold_already_set
