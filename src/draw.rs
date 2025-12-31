@@ -171,7 +171,7 @@ impl State {
 
         let selected_st = ratatui::style::Modifier::BOLD;
         for (idx, cmt) in commits_shallow.iter().enumerate() {
-            if Some(idx) == selection_idx {
+            if idx == selection_idx {
                 lines.push(Line::from(cmt.commit.clone()).style(selected_st));
                 authors.push(Line::from(cmt.signature.to_string()).style(selected_st));
                 times.push(Line::from(cmt.signature.time.clone()).style(selected_st));

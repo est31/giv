@@ -22,7 +22,7 @@ struct State {
     commits_shallow_cached: Option<Vec<CommitShallow>>,
     selected_commit_cached: Option<CommitDetail>,
 
-    selection_idx: Option<usize>,
+    selection_idx: usize,
     diff_scroll_idx: usize,
     commits_scroll_idx: usize,
 
@@ -42,7 +42,7 @@ impl State {
             wanted_commit_list_count: 10,
             commits_shallow_cached: None,
             selected_commit_cached: None,
-            selection_idx: None,
+            selection_idx: 0,
             diff_scroll_idx: 0,
             commits_scroll_idx: 0,
             last_rendered_diff: None,
@@ -84,14 +84,11 @@ impl App {
                     return ControlFlow::Break(());
                 } else if key.code == KeyCode::Down {
                     // Scroll down log area
-                    if let Some(idx) = self.state.selection_idx {
-                        self.state.selection_idx = Some(idx + 1);
-                    } else {
-                        self.state.selection_idx = Some(0);
-                    }
+                    self.state.selection_idx += 1;
+
                     if !self.state.last_log_area.is_empty() {
                         // Scroll down if we are at the bottom
-                        let selection_idx = self.state.selection_idx.unwrap();
+                        let selection_idx = self.state.selection_idx;
                         if selection_idx >= self.state.commits_scroll_idx + log_h as usize {
                             self.state.commits_scroll_idx += 1;
                         }
@@ -99,14 +96,11 @@ impl App {
                     self.state.invalidate_caches();
                 } else if key.code == KeyCode::Up {
                     // Scroll up log area
-                    if let Some(idx) = self.state.selection_idx {
-                        self.state.selection_idx = Some(idx.saturating_sub(1));
-                    } else {
-                        self.state.selection_idx = Some(0);
-                    }
+                    self.state.selection_idx = self.state.selection_idx.saturating_sub(1);
+
                     if !self.state.last_log_area.is_empty() {
                         // Scroll up if we are at the top
-                        let selection_idx = self.state.selection_idx.unwrap();
+                        let selection_idx = self.state.selection_idx;
                         if selection_idx < self.state.commits_scroll_idx {
                             self.state.commits_scroll_idx -= 1;
                         }
@@ -114,19 +108,13 @@ impl App {
                     self.state.invalidate_caches();
                 } else if key.code == KeyCode::PageDown {
                     // Scroll down log area alot
-                    if let Some(idx) = self.state.selection_idx {
-                        self.state.selection_idx = Some(idx + log_h as usize);
-                    } else {
-                        self.state.selection_idx = Some(0);
-                    }
+                    self.state.selection_idx += log_h as usize;
+
                     self.state.commits_scroll_idx += log_h as usize;
                 } else if key.code == KeyCode::PageUp {
                     // Scroll up log area alot
-                    if let Some(idx) = self.state.selection_idx {
-                        self.state.selection_idx = Some(idx.saturating_sub(log_h as usize));
-                    } else {
-                        self.state.selection_idx = Some(0);
-                    }
+                    self.state.selection_idx = self.state.selection_idx.saturating_sub(log_h as usize);
+
                     self.state.commits_scroll_idx = self.state.commits_scroll_idx.saturating_sub(log_h as usize);
                 } else if key.code == KeyCode::Char('j') {
                     // Scroll down commit area

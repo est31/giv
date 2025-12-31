@@ -104,9 +104,7 @@ impl State {
         }
     }
     fn get_selected_commit(&mut self) -> Result<Option<CommitDetail>, anyhow::Error> {
-        let Some(selection_idx) = self.selection_idx else {
-            return Ok(None);
-        };
+        let selection_idx = self.selection_idx;
         let id = {
             let selected_hash = self.get_or_refresh_commits_shallow()?;
             let Some(selected_commit) = selected_hash.get(selection_idx) else {
