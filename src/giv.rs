@@ -158,7 +158,7 @@ impl App {
                     if let Some(rendered_diff) = &self.state.last_rendered_diff {
                         let mut ctr = 0;
                         let sidx = self.state.diff_scroll_idx;
-                        for (_line, text) in &rendered_diff.texts {
+                        for (_line, text) in rendered_diff.texts.iter().rev().skip(1).rev() {
                             let len = text.lines.len();
                             if sidx >= ctr && sidx < ctr + len {
                                 self.state.diff_scroll_idx = ctr + len;
