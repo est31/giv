@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{ops::ControlFlow, time::Duration};
 
 use anyhow::{Context, anyhow};
 use crossterm::event::KeyCode;
@@ -57,57 +57,67 @@ impl App {
         loop {
             self.terminal.try_draw(|frame| self.state.draw(frame))?;
             if event::poll(POLL_INTERVAL).context("failed to poll for events")? {
-                match event::read().context("failed to read event")? {
-                    event::Event::Key(key) => {
-                        if key.code == KeyCode::Char('q') || key.code == KeyCode::Esc {
-                            // Quit the application using q
-                            break;
-                        } else if key.code == KeyCode::Down {
-                            if let Some(idx) = self.state.selection_idx {
-                                self.state.selection_idx = Some(idx + 1);
-                            } else {
-                                self.state.selection_idx = Some(0);
-                            }
-                            if !self.state.last_log_area.is_empty() {
-                                // Scroll down if we are at the bottom
-                                let selection_idx = self.state.selection_idx.unwrap();
-                                let h = self.state.last_log_area.height.saturating_sub(2);
-                                if selection_idx >= self.state.commits_scroll_idx + h as usize {
-                                    self.state.commits_scroll_idx += 1;
-                                }
-                            }
-                            self.state.invalidate_caches();
-                        } else if key.code == KeyCode::Up {
-                            if let Some(idx) = self.state.selection_idx {
-                                self.state.selection_idx = Some(idx.saturating_sub(1));
-                            } else {
-                                self.state.selection_idx = Some(0);
-                            }
-                            if !self.state.last_log_area.is_empty() {
-                                // Scroll up if we are at the top
-                                let selection_idx = self.state.selection_idx.unwrap();
-                                if selection_idx < self.state.commits_scroll_idx {
-                                    self.state.commits_scroll_idx -= 1;
-                                }
-                            }
-                            self.state.invalidate_caches();
-                        } else if key.code == KeyCode::Char('j') {
-                            self.state.diff_scroll_idx += 1;
-                        } else if key.code == KeyCode::Char('k') {
-                            self.state.diff_scroll_idx = self.state.diff_scroll_idx.saturating_sub(1);
-                        }
-                    }
-                    event::Event::FocusGained => (),
-                    event::Event::FocusLost => (),
-                    event::Event::Mouse(_) => (),
-                    event::Event::Paste(_) => (),
-                    event::Event::Resize(_, _) => {
-                        self.state.invalidate_caches();
-                    },
+                let event = event::read().context("failed to read event")?;
+                match self.handle_event(event) {
+                    ControlFlow::Break(()) => break,
+                    ControlFlow::Continue(()) => (),
                 }
             }
         }
         Ok(())
+    }
+    fn handle_event(&mut self, event: event::Event) -> ControlFlow<(), ()> {
+        match event {
+            event::Event::Key(key) => {
+                if key.code == KeyCode::Char('q') || key.code == KeyCode::Esc {
+                    // Quit the application using q
+                    return ControlFlow::Break(());
+                } else if key.code == KeyCode::Down {
+                    if let Some(idx) = self.state.selection_idx {
+                        self.state.selection_idx = Some(idx + 1);
+                    } else {
+                        self.state.selection_idx = Some(0);
+                    }
+                    if !self.state.last_log_area.is_empty() {
+                        // Scroll down if we are at the bottom
+                        let selection_idx = self.state.selection_idx.unwrap();
+                        let h = self.state.last_log_area.height.saturating_sub(2);
+                        if selection_idx >= self.state.commits_scroll_idx + h as usize {
+                            self.state.commits_scroll_idx += 1;
+                        }
+                    }
+                    self.state.invalidate_caches();
+                } else if key.code == KeyCode::Up {
+                    if let Some(idx) = self.state.selection_idx {
+                        self.state.selection_idx = Some(idx.saturating_sub(1));
+                    } else {
+                        self.state.selection_idx = Some(0);
+                    }
+                    if !self.state.last_log_area.is_empty() {
+                        // Scroll up if we are at the top
+                        let selection_idx = self.state.selection_idx.unwrap();
+                        if selection_idx < self.state.commits_scroll_idx {
+                            self.state.commits_scroll_idx -= 1;
+                        }
+                    }
+                    self.state.invalidate_caches();
+                } else if key.code == KeyCode::Down {
+                } else if key.code == KeyCode::Up {
+                } else if key.code == KeyCode::Char('j') {
+                    self.state.diff_scroll_idx += 1;
+                } else if key.code == KeyCode::Char('k') {
+                    self.state.diff_scroll_idx = self.state.diff_scroll_idx.saturating_sub(1);
+                }
+            }
+            event::Event::FocusGained => (),
+            event::Event::FocusLost => (),
+            event::Event::Mouse(_) => (),
+            event::Event::Paste(_) => (),
+            event::Event::Resize(_, _) => {
+                self.state.invalidate_caches();
+            },
+        }
+        ControlFlow::Continue(())
     }
 }
 
