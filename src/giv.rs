@@ -134,6 +134,34 @@ impl App {
                 } else if key.code == KeyCode::Char('k') {
                     // Scroll up commit area
                     self.state.diff_scroll_idx = self.state.diff_scroll_idx.saturating_sub(1);
+                } else if key.code == KeyCode::Char('h') {
+                    // Scroll up commit area to prev file
+                    if let Some(rendered_diff) = &self.state.last_rendered_diff {
+                        let mut ctr = 0;
+                        let sidx = self.state.diff_scroll_idx;
+                        for (_line, text) in &rendered_diff.texts {
+                            let len = text.lines.len();
+                            if sidx > ctr && sidx <= ctr + len {
+                                self.state.diff_scroll_idx = ctr;
+                                break;
+                            }
+                            ctr += len;
+                        }
+                    }
+                } else if key.code == KeyCode::Char('l') {
+                    // Scroll down commit area to next file
+                    if let Some(rendered_diff) = &self.state.last_rendered_diff {
+                        let mut ctr = 0;
+                        let sidx = self.state.diff_scroll_idx;
+                        for (_line, text) in &rendered_diff.texts {
+                            let len = text.lines.len();
+                            if sidx >= ctr && sidx < ctr + len {
+                                self.state.diff_scroll_idx = ctr + len;
+                                break;
+                            }
+                            ctr += len;
+                        }
+                    }
                 }
             }
             event::Event::FocusGained => (),
