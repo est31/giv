@@ -82,7 +82,7 @@ impl App {
                 if key.code == KeyCode::Char('q') || key.code == KeyCode::Esc {
                     // Quit the application using q
                     return ControlFlow::Break(());
-                } else if key.code == KeyCode::Down {
+                } else if key.code == KeyCode::Down || key.code == KeyCode::Char('j') {
                     // Scroll down log area
                     self.state.selection_idx += 1;
 
@@ -94,7 +94,7 @@ impl App {
                         }
                     }
                     self.state.invalidate_caches();
-                } else if key.code == KeyCode::Up {
+                } else if key.code == KeyCode::Up || key.code == KeyCode::Char('u') {
                     // Scroll up log area
                     self.state.selection_idx = self.state.selection_idx.saturating_sub(1);
 
@@ -106,23 +106,23 @@ impl App {
                         }
                     }
                     self.state.invalidate_caches();
-                } else if key.code == KeyCode::PageDown {
+                } else if key.code == KeyCode::PageDown || key.code == KeyCode::Char('J') {
                     // Scroll down log area alot
                     self.state.selection_idx += log_h as usize;
 
                     self.state.commits_scroll_idx += log_h as usize;
-                } else if key.code == KeyCode::PageUp {
+                } else if key.code == KeyCode::PageUp || key.code == KeyCode::Char('U') {
                     // Scroll up log area alot
                     self.state.selection_idx = self.state.selection_idx.saturating_sub(log_h as usize);
 
                     self.state.commits_scroll_idx = self.state.commits_scroll_idx.saturating_sub(log_h as usize);
-                } else if key.code == KeyCode::Char('j') {
+                } else if key.code == KeyCode::Char('k') {
                     // Scroll down commit area
                     self.state.diff_scroll_idx += 1;
-                } else if key.code == KeyCode::Char('k') {
+                } else if key.code == KeyCode::Char('i') {
                     // Scroll up commit area
                     self.state.diff_scroll_idx = self.state.diff_scroll_idx.saturating_sub(1);
-                } else if key.code == KeyCode::Char('h') {
+                } else if key.code == KeyCode::Char('I') {
                     // Scroll up commit area to prev file
                     if let Some(rendered_diff) = &self.state.last_rendered_diff {
                         let mut ctr = 0;
@@ -141,7 +141,7 @@ impl App {
                             self.state.diff_scroll_idx = last_ctr;
                         }
                     }
-                } else if key.code == KeyCode::Char('l') {
+                } else if key.code == KeyCode::Char('K') {
                     // Scroll down commit area to next file
                     if let Some(rendered_diff) = &self.state.last_rendered_diff {
                         let mut ctr = 0;
