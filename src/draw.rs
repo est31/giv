@@ -14,22 +14,29 @@ impl State {
             self.invalidate_caches();
         }
 
+        let [log_area, diff_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1)]).areas(area);
+
+        self.last_log_area = log_area;
+
+        let commits_scroll_idx = self.commits_scroll_idx as u16;
+
         let (lines, authors, times) = self.commits_authors_times_lines()
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
 
-        let [log_area, diff_area] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1)]).areas(area);
-
         let [commit_area, author_area, times_area] = Layout::horizontal([Constraint::Fill(2), Constraint::Fill(1), Constraint::Fill(1)]).areas(log_area);
 
-        let paragraph = Paragraph::new(lines);
+        let paragraph = Paragraph::new(lines)
+            .scroll((commits_scroll_idx as u16, 0));
         let block_commits = Block::bordered();
         frame.render_widget(paragraph.block(block_commits), commit_area);
 
-        let paragraph = Paragraph::new(authors);
+        let paragraph = Paragraph::new(authors)
+            .scroll((commits_scroll_idx as u16, 0));
         let block_author = Block::bordered();
         frame.render_widget(paragraph.block(block_author), author_area);
 
-        let paragraph = Paragraph::new(times);
+        let paragraph = Paragraph::new(times)
+            .scroll((commits_scroll_idx as u16, 0));
         let block_times = Block::bordered();
         frame.render_widget(paragraph.block(block_times), times_area);
 

@@ -4,7 +4,7 @@ use anyhow::{Context, anyhow};
 use crossterm::event::KeyCode;
 use gix::Repository;
 use ratatui::{
-    DefaultTerminal, crossterm::event,
+    DefaultTerminal, crossterm::event, layout::Rect,
 };
 use model::{CommitShallow, CommitDetail};
 
@@ -18,6 +18,8 @@ struct State {
     selected_commit_cached: Option<CommitDetail>,
     selection_idx: Option<usize>,
     diff_scroll_idx: usize,
+    commits_scroll_idx: usize,
+    last_log_area: Rect,
 }
 
 struct App {
@@ -34,6 +36,8 @@ impl State {
             selected_commit_cached: None,
             selection_idx: None,
             diff_scroll_idx: 0,
+            commits_scroll_idx: 0,
+            last_log_area: Rect::new(0, 0, 0, 0),
         };
         Ok(state)
     }
@@ -64,12 +68,27 @@ impl App {
                             } else {
                                 self.state.selection_idx = Some(0);
                             }
+                            if !self.state.last_log_area.is_empty() {
+                                // Scroll down if we are at the bottom
+                                let selection_idx = self.state.selection_idx.unwrap();
+                                let h = self.state.last_log_area.height.saturating_sub(2);
+                                if selection_idx >= self.state.commits_scroll_idx + h as usize {
+                                    self.state.commits_scroll_idx += 1;
+                                }
+                            }
                             self.state.invalidate_caches();
                         } else if key.code == KeyCode::Up {
                             if let Some(idx) = self.state.selection_idx {
                                 self.state.selection_idx = Some(idx.saturating_sub(1));
                             } else {
                                 self.state.selection_idx = Some(0);
+                            }
+                            if !self.state.last_log_area.is_empty() {
+                                // Scroll up if we are at the top
+                                let selection_idx = self.state.selection_idx.unwrap();
+                                if selection_idx < self.state.commits_scroll_idx {
+                                    self.state.commits_scroll_idx -= 1;
+                                }
                             }
                             self.state.invalidate_caches();
                         } else if key.code == KeyCode::Char('j') {
