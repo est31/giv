@@ -182,9 +182,9 @@ impl State {
                 authors.push(Line::from(cmt.signature.to_string()).style(selected_st));
                 times.push(Line::from(cmt.signature.time.clone()).style(selected_st));
             } else {
-            lines.push(Line::from(cmt.commit.clone()));
-            authors.push(Line::from(cmt.signature.to_string()));
-            times.push(Line::from(cmt.signature.time.clone()));
+                lines.push(Line::from(cmt.commit.clone()));
+                authors.push(Line::from(cmt.signature.to_string()));
+                times.push(Line::from(cmt.signature.time.clone()));
             }
         }
         Ok((lines, authors, times))
