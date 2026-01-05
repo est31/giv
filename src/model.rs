@@ -3,9 +3,14 @@ use gix::{ObjectId, actor::SignatureRef, diff::blob::{UnifiedDiff, unified_diff:
 use crate::State;
 
 pub(crate) struct CommitShallow {
-    pub(crate) id: ObjectId,
+    pub(crate) id: ShallowId,
     pub(crate) commit: String,
     pub(crate) signature: Signature,
+}
+
+pub(crate) enum ShallowId {
+    CommitId(ObjectId),
+    IndexId,
 }
 
 pub(crate) struct Signature {
@@ -57,13 +62,23 @@ impl State {
     }
     pub(crate) fn get_or_refresh_commits_shallow(&mut self) -> Result<&[CommitShallow], anyhow::Error> {
         if self.commits_shallow_cached.is_none() {
+            let mut res = Vec::new();
+
+            if self.repo.is_dirty()? {
+                res.push(CommitShallow {
+                    id: ShallowId::IndexId,
+                    commit: format!("Worktree changes, not in index"),
+                    signature: Signature { author_name: String::new(), author_email: String::new(), time: String::new() },
+                });
+            }
+
             let head_commit = self.repo.head_commit()?;
             let msg = head_commit.message()?;
             let id = head_commit.id().shorten_or_id();
             let title = msg.title.to_string();
-            let mut res = Vec::new();
+
             res.push(CommitShallow {
-                id: head_commit.id,
+                id: ShallowId::CommitId(head_commit.id),
                 commit: format!("{} {}", id, title.trim()),
                 signature: self.make_signature(head_commit.author()?)?,
             });
@@ -81,7 +96,7 @@ impl State {
                 let id = commit.id().shorten_or_id();
                 let title = msg.title.to_string();
                 res.push(CommitShallow {
-                id: commit.id,
+                    id: ShallowId::CommitId(commit.id),
                     commit: format!("{} {}", id, title.trim()),
                     signature: self.make_signature(commit.author()?)?,
                 });
@@ -110,7 +125,10 @@ impl State {
             let Some(selected_commit) = selected_hash.get(selection_idx) else {
                 return Ok(None);
             };
-            selected_commit.id
+            let ShallowId::CommitId(commit_id) = selected_commit.id else {
+                return Ok(None);
+            };
+            commit_id
         };
         let commit = self.repo.find_commit(id)?;
         let msg = commit.message()?;
