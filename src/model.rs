@@ -8,6 +8,7 @@ pub(crate) struct CommitShallow {
     pub(crate) signature: Signature,
 }
 
+#[derive(Clone, Copy)]
 pub(crate) enum ShallowId {
     CommitId(ObjectId),
     IndexId,
@@ -27,6 +28,12 @@ pub(crate) struct CommitDetail {
     pub(crate) parents: Vec<(ObjectId, Prefix, String)>,
     pub(crate) diff_parent: Diff,
     pub(crate) id: ObjectId,
+}
+
+pub(crate) enum Detail {
+    DiffTreeIndex(Diff),
+    DiffIndexCommit(Diff),
+    CommitDetail(CommitDetail),
 }
 
 pub(crate) enum FileModificationKind {
@@ -106,7 +113,7 @@ impl State {
             Ok(self.commits_shallow_cached.as_ref().unwrap())
         }
     }
-    pub(crate) fn get_or_refresh_selected_commit(&mut self) -> Result<Option<&CommitDetail>, anyhow::Error> {
+    pub(crate) fn get_or_refresh_selected_commit(&mut self) -> Result<Option<&Detail>, anyhow::Error> {
         if self.selected_commit_cached.is_none() {
             let selected_opt = self.get_selected_commit()?;
             if let Some(selected) = selected_opt {
@@ -118,18 +125,43 @@ impl State {
             Ok(self.selected_commit_cached.as_ref())
         }
     }
-    fn get_selected_commit(&mut self) -> Result<Option<CommitDetail>, anyhow::Error> {
+    fn get_selected_commit(&mut self) -> Result<Option<Detail>, anyhow::Error> {
         let selection_idx = self.selection_idx;
-        let id = {
+        let index_id = {
             let selected_hash = self.get_or_refresh_commits_shallow()?;
             let Some(selected_commit) = selected_hash.get(selection_idx) else {
                 return Ok(None);
             };
-            let ShallowId::CommitId(commit_id) = selected_commit.id else {
-                return Ok(None);
-            };
-            commit_id
+            selected_commit.id
         };
+        let id = match index_id {
+            ShallowId::CommitId(id) => id,
+            ShallowId::IndexId => {
+                let mut iter = self.repo
+                    .status(gix::progress::Discard)?
+                    .index_worktree_rewrites(None)
+                    .index_worktree_submodules(gix::status::Submodule::AsConfigured { check_dirty: true })
+                    .index_worktree_options_mut(|opts| {
+                        opts.dirwalk_options = None;
+                    })
+                    .into_index_worktree_iter(Vec::new())?;
+                let files = iter.map(|v| match v {
+                    Ok(gix::status::index_worktree::Item::Modification { entry: _, rela_path, .. }) => {
+                        (FileModificationKind::Modification, format!("{}", rela_path), "...".to_owned())
+                    },
+                    Ok(gix::status::index_worktree::Item::DirectoryContents { entry, .. }) => {
+                        (FileModificationKind::Addition, format!("{}", entry.rela_path), "".to_owned())
+                    },
+                    Ok(gix::status::index_worktree::Item::Rewrite { dirwalk_entry, .. }) => {
+                        (FileModificationKind::Modification, format!("{}", dirwalk_entry.rela_path), "".to_owned())
+                    },
+                    Err(e) => (FileModificationKind::Modification, format!("ERR"), format!("error: {e}")),
+                })
+                    .collect();
+                return Ok(Some(Detail::DiffTreeIndex(Diff { files })));
+            },
+        };
+
         let commit = self.repo.find_commit(id)?;
         let msg = commit.message()?;
         let title = msg.title.to_string().trim().to_owned();
@@ -152,7 +184,16 @@ impl State {
             // TODO this is a bit of a hack, but it allows us to separate error domains
             Err(e) => Diff { files: vec![(FileModificationKind::Deletion, "ERROR".to_owned(), format!("error: {e}"))]},
         };
-        Ok(Some(CommitDetail { author, committer, parents, title, msg_detail, diff_parent, id }))
+        let commit_detail = CommitDetail {
+            author,
+            committer,
+            parents,
+            title,
+            msg_detail,
+            diff_parent,
+            id,
+        };
+        Ok(Some(Detail::CommitDetail(commit_detail)))
     }
     fn compute_diff(&self, commit: gix::Commit<'_>) -> Result<Diff, anyhow::Error> {
         let Some(parent_id) = commit.parent_ids().next() else {
