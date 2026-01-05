@@ -6,7 +6,7 @@ use gix::Repository;
 use ratatui::{
     DefaultTerminal, crossterm::event, layout::Rect,
 };
-use model::{CommitShallow, CommitDetail};
+use model::CommitShallow;
 
 use crate::{draw::RenderedDiff, model::Detail};
 

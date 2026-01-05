@@ -30,6 +30,7 @@ pub(crate) struct CommitDetail {
     pub(crate) id: ObjectId,
 }
 
+#[allow(dead_code)]
 pub(crate) enum Detail {
     DiffTreeIndex(Diff),
     DiffIndexCommit(Diff),
@@ -137,7 +138,7 @@ impl State {
         let id = match index_id {
             ShallowId::CommitId(id) => id,
             ShallowId::IndexId => {
-                let mut iter = self.repo
+                let iter = self.repo
                     .status(gix::progress::Discard)?
                     .index_worktree_rewrites(None)
                     .index_worktree_submodules(gix::status::Submodule::AsConfigured { check_dirty: true })
@@ -148,6 +149,7 @@ impl State {
                 let files = iter.map(|v| match v {
                     Ok(gix::status::index_worktree::Item::Modification { entry: _, rela_path, .. }) => {
                         (FileModificationKind::Modification, format!("{}", rela_path), "...".to_owned())
+
                     },
                     Ok(gix::status::index_worktree::Item::DirectoryContents { entry, .. }) => {
                         (FileModificationKind::Addition, format!("{}", entry.rela_path), "".to_owned())
