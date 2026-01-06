@@ -256,45 +256,6 @@ impl State {
             let file = (FileModificationKind::Modification, format!("{}", path), diff_str_raw);
             files.push(file);
         }
-        /*let iter = self.repo
-            .status(gix::progress::Discard)?
-            .index_worktree_rewrites(None)
-            .index_worktree_submodules(gix::status::Submodule::AsConfigured { check_dirty: true })
-            .index_worktree_options_mut(|opts| {
-                opts.dirwalk_options = None;
-            })
-            .into_index_worktree_iter(Vec::new())?;
-        let files = iter.map(|v| match v {
-            Ok(gix::status::index_worktree::Item::Modification { entry, rela_path, .. }) => {
-                // TODO don't use unwrap here but return dedicated ERR item
-                let file_on_head = head_tree.lookup_entry_by_path(std::path::PathBuf::from(rela_path.to_string())).unwrap();
-                let file_on_head = file_on_head.unwrap();
-                let data_head = &file_on_head.object().unwrap().data;
-
-                let obj = self.repo.find_object(entry.id).unwrap();
-
-                let interner = gix::diff::blob::intern::InternedInput::new(data_head.as_slice(), obj.data.as_slice());
-                let diff_str_raw = gix::diff::blob::diff(
-                    gix::diff::blob::Algorithm::Myers,
-                    &interner,
-                    UnifiedDiff::new(
-                        &interner,
-                        ConsumeBinaryHunk::new(String::new(), "\n"),
-                        ContextSize::symmetrical(3),
-                    ),
-                ).unwrap();
-                let diff_str_raw = format!("{diff_str_raw}\n{} to {}", file_on_head.object_id(), entry.id);
-                (FileModificationKind::Modification, format!("{}", rela_path), diff_str_raw)
-            },
-            Ok(gix::status::index_worktree::Item::DirectoryContents { entry, .. }) => {
-                (FileModificationKind::Addition, format!("{}", entry.rela_path), "New file".to_owned())
-            },
-            Ok(gix::status::index_worktree::Item::Rewrite { dirwalk_entry, .. }) => {
-                (FileModificationKind::Modification, format!("{}", dirwalk_entry.rela_path), "...".to_owned())
-            },
-            Err(e) => (FileModificationKind::Modification, format!("ERR"), format!("error: {e}")),
-        })
-            .collect();*/
         return Ok(Diff { files });
     }
     fn compute_diff_commit(&self, commit: gix::Commit<'_>) -> Result<Diff, anyhow::Error> {
