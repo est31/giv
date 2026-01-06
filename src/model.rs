@@ -80,11 +80,13 @@ impl State {
                     signature: Signature { author_name: String::new(), author_email: String::new(), time: String::new() },
                 });
             }
-            res.push(CommitShallow {
-                id: ShallowId::Index,
-                commit: format!("Index changes, not in a commit"),
-                signature: Signature { author_name: String::new(), author_email: String::new(), time: String::new() },
-            });
+            if self.has_index_changes()? {
+                res.push(CommitShallow {
+                    id: ShallowId::Index,
+                    commit: format!("Index changes, not in a commit"),
+                    signature: Signature { author_name: String::new(), author_email: String::new(), time: String::new() },
+                });
+            }
 
             let head_commit = self.repo.head_commit()?;
             let msg = head_commit.message()?;
@@ -119,6 +121,24 @@ impl State {
         } else {
             Ok(self.commits_shallow_cached.as_ref().unwrap())
         }
+    }
+    pub(crate) fn has_index_changes(&mut self) -> Result<bool, anyhow::Error> {
+        let Some(index) = self.repo.try_index()? else {
+            return Ok(false);
+        };
+        let head_tree = self.repo.head_tree()?;
+        for entry in index.entries() {
+            let path = entry.path(&index);
+            let file_on_head = head_tree.lookup_entry_by_path(std::path::PathBuf::from(path.to_string()))?;
+            let Some(file_on_head) = file_on_head else {
+                return Ok(true);
+            };
+            if entry.id != file_on_head.id().detach() {
+                return Ok(true);
+            }
+        }
+        // TODO track if a file was deleted in the index compared to the tree
+        Ok(false)
     }
     pub(crate) fn get_or_refresh_selected_commit(&mut self) -> Result<Option<&Detail>, anyhow::Error> {
         if self.selected_commit_cached.is_none() {
@@ -228,7 +248,7 @@ impl State {
     }
     fn compute_diff_index_to_commit(&self) -> Result<Diff, anyhow::Error> {
         // TODO this is a self-made implementation with some serious issues:
-        // * no files deleted on local disk
+        // * no files deleted in the index
         // * no rename tracking
 
         let mut files = Vec::new();
