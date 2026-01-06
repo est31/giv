@@ -257,6 +257,7 @@ impl State {
             .status(gix::progress::Discard)?
             .index_worktree_rewrites(None)
             .index_worktree_submodules(gix::status::Submodule::AsConfigured { check_dirty: true })
+            .untracked_files(gix::status::UntrackedFiles::Collapsed)
             .index_worktree_options_mut(|opts| {
                 opts.dirwalk_options = None;
             })
@@ -274,6 +275,7 @@ impl State {
 
                 gix::diff::index::ChangeRef::Rewrite { location, source_id: previous_id, id, .. } |
                 gix::diff::index::ChangeRef::Modification { location, previous_id, id, .. } => {
+                // TODO don't use unwrap here but return dedicated ERR item
                     let prev_obj = self.repo.find_object(&*previous_id.to_owned()).unwrap();
                     let now_obj = self.repo.find_object(&*id.to_owned()).unwrap();
 
