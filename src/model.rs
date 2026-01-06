@@ -253,37 +253,43 @@ impl State {
         return Ok(Diff { files });
     }
     fn compute_diff_index_to_commit(&self) -> Result<Diff, anyhow::Error> {
-        // TODO this is a self-made implementation with some serious issues:
-        // * no files deleted in the index
-        // * no rename tracking
+        let iter = self.repo
+            .status(gix::progress::Discard)?
+            .index_worktree_rewrites(None)
+            .index_worktree_submodules(gix::status::Submodule::AsConfigured { check_dirty: true })
+            .index_worktree_options_mut(|opts| {
+                opts.dirwalk_options = None;
+            })
+            .into_iter(Vec::new())?;
 
         let mut files = Vec::new();
 
-        let head_tree = self.repo.head_tree()?;
-        let index = self.repo.index()?;
-
-        for entry in index.entries() {
-            let path = entry.path(&index);
-            let file_on_head = head_tree.lookup_entry_by_path(std::path::PathBuf::from(path.to_string())).unwrap();
-            let data_head = if let Some(file_on_head) = file_on_head {
-                &file_on_head.object().unwrap().data
-            } else {
-                &Vec::new()
+        for v in iter {
+            let gix::status::Item::TreeIndex(change) = v? else {
+                continue;
             };
+            let file = match change {
+                gix::diff::index::ChangeRef::Addition { location, id: _, .. } =>  (FileModificationKind::Addition, format!("{location}"), "...".to_owned()),
+                gix::diff::index::ChangeRef::Deletion { location, id: _, .. } =>  (FileModificationKind::Deletion, format!("{location}"), "...".to_owned()),
 
-            let obj = self.repo.find_object(entry.id).unwrap();
+                gix::diff::index::ChangeRef::Rewrite { location, source_id: previous_id, id, .. } |
+                gix::diff::index::ChangeRef::Modification { location, previous_id, id, .. } => {
+                    let prev_obj = self.repo.find_object(&*previous_id.to_owned()).unwrap();
+                    let now_obj = self.repo.find_object(&*id.to_owned()).unwrap();
 
-            let interner = gix::diff::blob::intern::InternedInput::new(data_head.as_slice(), obj.data.as_slice());
-            let diff_str_raw = gix::diff::blob::diff(
-                gix::diff::blob::Algorithm::Myers,
-                &interner,
-                UnifiedDiff::new(
-                    &interner,
-                    ConsumeBinaryHunk::new(String::new(), "\n"),
-                    ContextSize::symmetrical(3),
-                ),
-            ).unwrap();
-            let file = (FileModificationKind::Modification, format!("{}", path), diff_str_raw);
+                    let interner = gix::diff::blob::intern::InternedInput::new(prev_obj.data.as_slice(), now_obj.data.as_slice());
+                    let diff_str_raw = gix::diff::blob::diff(
+                        gix::diff::blob::Algorithm::Myers,
+                        &interner,
+                        UnifiedDiff::new(
+                            &interner,
+                            ConsumeBinaryHunk::new(String::new(), "\n"),
+                            ContextSize::symmetrical(3),
+                        ),
+                    ).unwrap();
+                    (FileModificationKind::Modification, format!("{location}"), diff_str_raw)
+                },
+            };
             files.push(file);
         }
         return Ok(Diff { files });
