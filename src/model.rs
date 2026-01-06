@@ -229,6 +229,7 @@ impl State {
     fn compute_diff_index_to_commit(&self) -> Result<Diff, anyhow::Error> {
         // TODO this is a self-made implementation with some serious issues:
         // * no files deleted on local disk
+        // * no rename tracking
 
         let mut files = Vec::new();
 
@@ -238,21 +239,24 @@ impl State {
         for entry in index.entries() {
             let path = entry.path(&index);
             let file_on_head = head_tree.lookup_entry_by_path(std::path::PathBuf::from(path.to_string())).unwrap();
-            let file_on_head = file_on_head.unwrap();
-                let data_head = &file_on_head.object().unwrap().data;
+            let data_head = if let Some(file_on_head) = file_on_head {
+                &file_on_head.object().unwrap().data
+            } else {
+                &Vec::new()
+            };
 
-                let obj = self.repo.find_object(entry.id).unwrap();
+            let obj = self.repo.find_object(entry.id).unwrap();
 
-                let interner = gix::diff::blob::intern::InternedInput::new(data_head.as_slice(), obj.data.as_slice());
-                let diff_str_raw = gix::diff::blob::diff(
-                    gix::diff::blob::Algorithm::Myers,
+            let interner = gix::diff::blob::intern::InternedInput::new(data_head.as_slice(), obj.data.as_slice());
+            let diff_str_raw = gix::diff::blob::diff(
+                gix::diff::blob::Algorithm::Myers,
+                &interner,
+                UnifiedDiff::new(
                     &interner,
-                    UnifiedDiff::new(
-                        &interner,
-                        ConsumeBinaryHunk::new(String::new(), "\n"),
-                        ContextSize::symmetrical(3),
-                    ),
-                ).unwrap();
+                    ConsumeBinaryHunk::new(String::new(), "\n"),
+                    ContextSize::symmetrical(3),
+                ),
+            ).unwrap();
             let file = (FileModificationKind::Modification, format!("{}", path), diff_str_raw);
             files.push(file);
         }
