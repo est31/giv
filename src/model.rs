@@ -73,14 +73,16 @@ impl State {
         if self.commits_shallow_cached.is_none() {
             let mut res = Vec::new();
 
-            if self.repo.is_dirty()? {
+            let (worktree_changes, index_changes) = self.has_worktree_index_changes()?;
+
+            if worktree_changes {
                 res.push(CommitShallow {
                     id: ShallowId::Worktree,
                     commit: format!("Worktree changes, not in index"),
                     signature: Signature { author_name: String::new(), author_email: String::new(), time: String::new() },
                 });
             }
-            if self.has_index_changes()? {
+            if index_changes {
                 res.push(CommitShallow {
                     id: ShallowId::Index,
                     commit: format!("Index changes, not in a commit"),
@@ -122,23 +124,27 @@ impl State {
             Ok(self.commits_shallow_cached.as_ref().unwrap())
         }
     }
-    pub(crate) fn has_index_changes(&mut self) -> Result<bool, anyhow::Error> {
-        let Some(index) = self.repo.try_index()? else {
-            return Ok(false);
-        };
-        let head_tree = self.repo.head_tree()?;
-        for entry in index.entries() {
-            let path = entry.path(&index);
-            let file_on_head = head_tree.lookup_entry_by_path(std::path::PathBuf::from(path.to_string()))?;
-            let Some(file_on_head) = file_on_head else {
-                return Ok(true);
-            };
-            if entry.id != file_on_head.id().detach() {
-                return Ok(true);
+    pub(crate) fn has_worktree_index_changes(&mut self) -> Result<(bool, bool), anyhow::Error> {
+        let iter = self.repo
+            .status(gix::progress::Discard)?
+            .index_worktree_rewrites(None)
+            .index_worktree_submodules(gix::status::Submodule::AsConfigured { check_dirty: true })
+            .untracked_files(gix::status::UntrackedFiles::Collapsed)
+            .index_worktree_options_mut(|opts| {
+                opts.dirwalk_options = None;
+            })
+            .into_iter(Vec::new())?;
+
+        let mut worktree_changes = false;
+        let mut index_changes = false;
+
+        for it in iter {
+            match it? {
+                gix::status::Item::IndexWorktree(_) => worktree_changes = true,
+                gix::status::Item::TreeIndex(_) => index_changes = true,
             }
         }
-        // TODO track if a file was deleted in the index compared to the tree
-        Ok(false)
+        Ok((worktree_changes, index_changes))
     }
     pub(crate) fn get_or_refresh_selected_commit(&mut self) -> Result<Option<&Detail>, anyhow::Error> {
         if self.selected_commit_cached.is_none() {
