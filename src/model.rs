@@ -147,7 +147,7 @@ impl State {
                 return Ok(Some(Detail::DiffTreeIndex(self.compute_diff_worktree_to_index()?)));
             },
             ShallowId::Index => {
-                return Ok(Some(Detail::DiffTreeIndex(self.compute_diff_index_to_commit()?)));
+                return Ok(Some(Detail::DiffIndexCommit(self.compute_diff_index_to_commit()?)));
 
             }
         };
@@ -186,7 +186,6 @@ impl State {
         Ok(Some(Detail::CommitDetail(commit_detail)))
     }
     fn compute_diff_worktree_to_index(&self) -> Result<Diff, anyhow::Error> {
-        let head_tree = self.repo.head_tree()?;
         let iter = self.repo
             .status(gix::progress::Discard)?
             .index_worktree_rewrites(None)
@@ -198,13 +197,12 @@ impl State {
         let files = iter.map(|v| match v {
             Ok(gix::status::index_worktree::Item::Modification { entry, rela_path, .. }) => {
                 // TODO don't use unwrap here but return dedicated ERR item
-                let file_on_head = head_tree.lookup_entry_by_path(std::path::PathBuf::from(rela_path.to_string())).unwrap();
-                let file_on_head = file_on_head.unwrap();
-                let data_head = &file_on_head.object().unwrap().data;
+                let worktree = self.repo.worktree().unwrap();
+                let in_worktree = std::fs::read(worktree.base().join(rela_path.to_string())).unwrap();
 
                 let obj = self.repo.find_object(entry.id).unwrap();
 
-                let interner = gix::diff::blob::intern::InternedInput::new(data_head.as_slice(), obj.data.as_slice());
+                let interner = gix::diff::blob::intern::InternedInput::new(obj.data.as_slice(), in_worktree.as_slice());
                 let diff_str_raw = gix::diff::blob::diff(
                     gix::diff::blob::Algorithm::Myers,
                     &interner,
@@ -214,7 +212,7 @@ impl State {
                         ContextSize::symmetrical(3),
                     ),
                 ).unwrap();
-                let diff_str_raw = format!("{diff_str_raw}\n{} to {}", file_on_head.object_id(), entry.id);
+                let diff_str_raw = format!("{diff_str_raw}\nworktree to {}", entry.id);
                 (FileModificationKind::Modification, format!("{}", rela_path), diff_str_raw)
             },
             Ok(gix::status::index_worktree::Item::DirectoryContents { entry, .. }) => {
