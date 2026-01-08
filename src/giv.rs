@@ -78,7 +78,7 @@ impl App {
         Ok(())
     }
     fn handle_event(&mut self, event: event::Event) -> ControlFlow<(), ()> {
-        let log_h = self.state.last_log_area.height.saturating_sub(2);
+        let log_h = self.state.last_log_area.height.saturating_sub(2) / 2;
         let diff_h = self.state.last_diff_area.height.saturating_sub(2) / 2;
         match event {
             event::Event::Key(key) => {
