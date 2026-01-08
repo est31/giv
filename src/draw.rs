@@ -24,6 +24,7 @@ impl State {
         }
 
         self.last_log_area = log_area;
+        self.last_diff_area = diff_area;
 
         self.draw_log_area(frame, log_area)?;
         self.draw_selected_commit_area(frame, diff_area)?;

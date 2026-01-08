@@ -28,6 +28,7 @@ struct State {
 
     last_rendered_diff: Option<RenderedDiff>,
     last_log_area: Rect,
+    last_diff_area: Rect,
 }
 
 struct App {
@@ -47,6 +48,7 @@ impl State {
             commits_scroll_idx: 0,
             last_rendered_diff: None,
             last_log_area: Rect::new(0, 0, 0, 0),
+            last_diff_area: Rect::new(0, 0, 0, 0),
         };
         Ok(state)
     }
@@ -77,6 +79,7 @@ impl App {
     }
     fn handle_event(&mut self, event: event::Event) -> ControlFlow<(), ()> {
         let log_h = self.state.last_log_area.height.saturating_sub(2);
+        let diff_h = self.state.last_diff_area.height.saturating_sub(2) / 2;
         match event {
             event::Event::Key(key) => {
                 if key.code == KeyCode::Char('q') || key.code == KeyCode::Esc {
@@ -120,8 +123,14 @@ impl App {
                     // Scroll down commit area
                     self.state.diff_scroll_idx += 1;
                 } else if key.code == KeyCode::Char('o') {
-                    // Scroll up commit area
+                    // Scroll up commit area alot
                     self.state.diff_scroll_idx = self.state.diff_scroll_idx.saturating_sub(1);
+                } else if key.code == KeyCode::Char('L') {
+                    // Scroll down commit area alot
+                    self.state.diff_scroll_idx += diff_h as usize;
+                } else if key.code == KeyCode::Char('O') {
+                    // Scroll up commit area
+                    self.state.diff_scroll_idx = self.state.diff_scroll_idx.saturating_sub(diff_h as usize);
                 } else if key.code == KeyCode::Char('w') {
                     // Scroll up commit area to prev file
                     if let Some(rendered_diff) = &self.state.last_rendered_diff {
