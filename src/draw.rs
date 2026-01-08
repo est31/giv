@@ -1,5 +1,5 @@
 use ratatui::{
-    Frame, layout::{Constraint, Layout, Rect}, style::{Style, Stylize}, text::{Line, Span, Text}, widgets::{Block, Paragraph, Wrap}
+    Frame, layout::{Constraint, Layout, Rect}, style::{Style, Stylize}, text::{Line, Span, Text}, widgets::{Block, Paragraph, Scrollbar, ScrollbarState, Wrap}
 };
 
 use crate::model::{CommitDetail, Detail, Diff};
@@ -172,34 +172,47 @@ impl State {
         else {
             return Ok(());
         };
+        if rendered_diff.texts.len() == 0 {
+            return Ok(());
+        }
+
+        let [commit_descr_area, files_area] = Layout::horizontal([Constraint::Fill(3), Constraint::Fill(1)]).areas(diff_area);
+
+        let files_lines = rendered_diff.texts.iter()
+            .map(|l| l.0.clone())
+            .collect::<Vec<_>>();
+        let commit_descr_text = rendered_diff.texts.into_iter()
+            .fold(Text::from(Vec::new()), |mut t_a, (_l_b, t_b)| {
+                t_a.extend(t_b);
+                t_a
+            });
+
+        let mut scrollbar_state = ScrollbarState::new(commit_descr_text.lines.len());
+        scrollbar_state = scrollbar_state.position(diff_scroll_idx);
+
+        let paragraph = Paragraph::new(commit_descr_text)
+            .wrap(Wrap { trim: false })
+            .scroll((diff_scroll_idx as u16, 0));
+
+        let scrollbar_area = commit_descr_area.inner(ratatui::layout::Margin {
+            vertical: 0,
+            horizontal: 1,
+        });
+        frame.render_stateful_widget(Scrollbar::new(ratatui::widgets::ScrollbarOrientation::VerticalRight), scrollbar_area, &mut scrollbar_state);
+
         let title = match selected_commit {
             Detail::CommitDetail(selected_commit) => format!("Commit {}", selected_commit.id),
             Detail::DiffTreeIndex(_) | Detail::DiffIndexCommit(_) => format!("Diff"),
         };
+        let block_selected = Block::bordered().title(title);
+        frame.render_widget(paragraph.block(block_selected), commit_descr_area);
 
-        let [commit_descr_area, files_area] = Layout::horizontal([Constraint::Fill(3), Constraint::Fill(1)]).areas(diff_area);
+        let paragraph = Paragraph::new(files_lines)
+            .wrap(Wrap { trim: true });
+        let block_selected = Block::bordered();
+        frame.render_widget(paragraph.block(block_selected), files_area);
 
-        if rendered_diff.texts.len() > 0 {
-            let files_lines = rendered_diff.texts.iter()
-                .map(|l| l.0.clone())
-                .collect::<Vec<_>>();
-            let commit_descr_text = rendered_diff.texts.into_iter()
-                .fold(Text::from(Vec::new()), |mut t_a, (_l_b, t_b)| {
-                    t_a.extend(t_b);
-                    t_a
-                });
 
-            let paragraph = Paragraph::new(commit_descr_text)
-                .wrap(Wrap { trim: false })
-                .scroll((diff_scroll_idx as u16, 0));
-            let block_selected = Block::bordered().title(title);
-            frame.render_widget(paragraph.block(block_selected), commit_descr_area);
-
-            let paragraph = Paragraph::new(files_lines)
-                .wrap(Wrap { trim: true });
-            let block_selected = Block::bordered();
-            frame.render_widget(paragraph.block(block_selected), files_area);
-        }
         Ok(())
     }
     pub(crate) fn commits_authors_times_lines(&mut self) -> Result<(Vec<Line<'_>>, Vec<Line<'_>>, Vec<Line<'_>>), anyhow::Error> {
