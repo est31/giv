@@ -88,6 +88,7 @@ impl App {
                 } else if key.code == KeyCode::Down || key.code == KeyCode::Char('k') {
                     // Scroll down log area
                     self.state.selection_idx += 1;
+                    self.state.diff_scroll_idx = 0;
 
                     if !self.state.last_log_area.is_empty() {
                         // Scroll down if we are at the bottom
@@ -100,6 +101,7 @@ impl App {
                 } else if key.code == KeyCode::Up || key.code == KeyCode::Char('i') {
                     // Scroll up log area
                     self.state.selection_idx = self.state.selection_idx.saturating_sub(1);
+                    self.state.diff_scroll_idx = 0;
 
                     if !self.state.last_log_area.is_empty() {
                         // Scroll up if we are at the top
@@ -112,11 +114,13 @@ impl App {
                 } else if key.code == KeyCode::PageDown || key.code == KeyCode::Char('K') {
                     // Scroll down log area alot
                     self.state.selection_idx += log_h as usize;
+                    self.state.diff_scroll_idx = 0;
 
                     self.state.commits_scroll_idx += log_h as usize;
                 } else if key.code == KeyCode::PageUp || key.code == KeyCode::Char('I') {
                     // Scroll up log area alot
                     self.state.selection_idx = self.state.selection_idx.saturating_sub(log_h as usize);
+                    self.state.diff_scroll_idx = 0;
 
                     self.state.commits_scroll_idx = self.state.commits_scroll_idx.saturating_sub(log_h as usize);
                 } else if key.code == KeyCode::Char('l') {
