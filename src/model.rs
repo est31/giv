@@ -12,7 +12,7 @@ pub(crate) struct CommitShallow {
 
 #[derive(Clone, Copy)]
 pub(crate) enum ShallowId {
-    CommitId(ObjectId),
+    CommitId(ObjectId, Prefix),
     Worktree,
     Index,
 }
@@ -114,11 +114,10 @@ impl State {
                     to_handle.insert(((), parent_id.detach()));
                 }
                 let msg = commit.message()?;
-                let id = commit.id().shorten_or_id();
                 let title = msg.title.to_string();
                 res.push(CommitShallow {
-                    id: ShallowId::CommitId(commit.id),
-                    commit: format!("{} {}", id, title.trim()),
+                    id: ShallowId::CommitId(commit.id, commit.short_id()?),
+                    commit: format!("{}", title.trim()),
                     signature: self.make_signature(commit.author()?)?,
                 });
             }
@@ -175,7 +174,7 @@ impl State {
             selected_commit.id
         };
         let id = match index_id {
-            ShallowId::CommitId(id) => id,
+            ShallowId::CommitId(id, _prefix) => id,
             ShallowId::Worktree => {
                 return Ok(Some(Detail::DiffTreeIndex(self.compute_diff_worktree_to_index()?)));
             },

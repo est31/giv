@@ -232,12 +232,20 @@ impl State {
 
         let selected_st = ratatui::style::Modifier::BOLD | ratatui::style::Modifier::UNDERLINED;
         for (idx, cmt) in commits_shallow.iter().enumerate() {
+            let commit_id_st = Style::default().yellow();
+            let commit_line = match cmt.id {
+                crate::model::ShallowId::CommitId(_id, prefix) =>
+                    Line::from(vec![Span::from(prefix.to_string()).style(commit_id_st), Span::from(format!(" {}", cmt.commit))]),
+                crate::model::ShallowId::Worktree | crate::model::ShallowId::Index =>
+                    Line::from(cmt.commit.clone()),
+
+            };
             if idx == selection_idx {
-                lines.push(Line::from(cmt.commit.clone()).style(selected_st));
+                lines.push(commit_line.style(selected_st));
                 authors.push(Line::from(cmt.signature.to_string()).style(selected_st));
                 times.push(Line::from(cmt.signature.time.clone()).style(selected_st));
             } else {
-                lines.push(Line::from(cmt.commit.clone()));
+                lines.push(commit_line);
                 authors.push(Line::from(cmt.signature.to_string()));
                 times.push(Line::from(cmt.signature.time.clone()));
             }
