@@ -156,7 +156,6 @@ impl App {
         let log_h = self.state.last_log_area.height.saturating_sub(2);
 
         self.state.selection_idx += amount;
-        self.state.diff_scroll_idx = 0;
 
         if !self.state.last_log_area.is_empty() {
             // Scroll down if we are at the bottom
@@ -165,14 +164,23 @@ impl App {
                 self.state.commits_scroll_idx += amount;
             }
         }
+
+        self.state.diff_scroll_idx = 0;
         self.state.invalidate_caches();
     }
     fn handle_log_select_up(&mut self, amount: usize) {
         self.state.selection_idx = self.state.selection_idx.saturating_sub(amount as usize);
-        self.state.diff_scroll_idx = 0;
 
-        self.state.commits_scroll_idx =
-            self.state.commits_scroll_idx.saturating_sub(amount as usize);
+        if !self.state.last_log_area.is_empty() {
+            // Scroll dup if we are at the top
+            let selection_idx = self.state.selection_idx;
+            if selection_idx < self.state.commits_scroll_idx {
+                self.state.commits_scroll_idx =
+                    self.state.commits_scroll_idx.saturating_sub(amount as usize);
+            }
+        }
+
+        self.state.diff_scroll_idx = 0;
         self.state.invalidate_caches();
     }
     fn handle_diff_scroll_up(&mut self, amount: usize) {
