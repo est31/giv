@@ -230,7 +230,7 @@ impl State {
         let commits_shallow = self.get_or_refresh_commits_shallow()?;
         let [mut lines, mut authors, mut times]: [Vec<_>; 3] = Default::default();
 
-        let selected_st = ratatui::style::Modifier::BOLD;
+        let selected_st = ratatui::style::Modifier::BOLD | ratatui::style::Modifier::UNDERLINED;
         for (idx, cmt) in commits_shallow.iter().enumerate() {
             if idx == selection_idx {
                 lines.push(Line::from(cmt.commit.clone()).style(selected_st));
