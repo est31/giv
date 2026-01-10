@@ -1,4 +1,6 @@
-use gix::{ObjectId, actor::SignatureRef, diff::blob::{UnifiedDiff, unified_diff::{ConsumeBinaryHunk, ContextSize}}, hash::Prefix};
+use std::collections::BTreeSet;
+
+use gix::{ObjectId, actor::SignatureRef, diff::blob::{UnifiedDiff, unified_diff::{ConsumeBinaryHunk, ContextSize}}, hash::Prefix, hashtable::hash_set::HashSet};
 
 use crate::State;
 
@@ -92,25 +94,25 @@ impl State {
             }
 
             let head_commit = self.repo.head_commit()?;
-            let msg = head_commit.message()?;
-            let id = head_commit.id().shorten_or_id();
-            let title = msg.title.to_string();
 
-            res.push(CommitShallow {
-                id: ShallowId::CommitId(head_commit.id),
-                commit: format!("{} {}", id, title.trim()),
-                signature: self.make_signature(head_commit.author()?)?,
-            });
             let budget = self.wanted_commit_list_count;
-            let mut commit = head_commit;
 
-            for _ in 0..budget {
-                // TODO support multiple parent IDs
-                let Some(parent_id) = commit.parent_ids().next() else {
-                    // No parent left
+            let mut seen = HashSet::new();
+            let mut to_handle = BTreeSet::new();
+
+            to_handle.insert(((), head_commit.id));
+
+            while let Some((_commit_date, commit_id)) = to_handle.pop_first() {
+                if res.len() > budget {
                     break;
-                };
-                commit = self.repo.find_commit(parent_id)?;
+                }
+                let commit = self.repo.find_commit(commit_id)?;
+                for parent_id in commit.parent_ids() {
+                    if !seen.insert(parent_id.detach()) {
+                        continue;
+                    }
+                    to_handle.insert(((), parent_id.detach()));
+                }
                 let msg = commit.message()?;
                 let id = commit.id().shorten_or_id();
                 let title = msg.title.to_string();
