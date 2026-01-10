@@ -127,6 +127,10 @@ impl State {
         }
     }
     pub(crate) fn has_worktree_index_changes(&mut self) -> Result<(bool, bool), anyhow::Error> {
+        if let Some(cached) = self.worktree_index_changed_cached {
+            return Ok(cached);
+        }
+
         let iter = self.repo
             .status(gix::progress::Discard)?
             .index_worktree_rewrites(None)
@@ -146,7 +150,10 @@ impl State {
                 gix::status::Item::TreeIndex(_) => index_changes = true,
             }
         }
-        Ok((worktree_changes, index_changes))
+        let res = (worktree_changes, index_changes);
+        self.worktree_index_changed_cached = Some(res);
+
+        Ok(res)
     }
     pub(crate) fn get_or_refresh_selected_commit(&mut self) -> Result<Option<&Detail>, anyhow::Error> {
         if self.selected_commit_cached.is_none() {

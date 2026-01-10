@@ -19,6 +19,7 @@ struct State {
     // Model caches
     commits_shallow_cached: Option<Vec<CommitShallow>>,
     selected_commit_cached: Option<Detail>,
+    worktree_index_changed_cached: Option<(bool, bool)>,
 
     selection_idx: usize,
     diff_scroll_idx: usize,
@@ -41,6 +42,7 @@ impl State {
             wanted_commit_list_count: 10,
             commits_shallow_cached: None,
             selected_commit_cached: None,
+            worktree_index_changed_cached: None,
             selection_idx: 0,
             diff_scroll_idx: 0,
             commits_scroll_idx: 0,
