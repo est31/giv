@@ -2,7 +2,7 @@ use ratatui::{
     Frame, layout::{Constraint, Layout, Rect}, style::{Style, Stylize}, text::{Line, Span, Text}, widgets::{Block, Paragraph, Scrollbar, ScrollbarState, Wrap}
 };
 
-use crate::model::{CommitDetail, Detail, Diff};
+use crate::model::{CommitDetail, Detail, Diff, FileModificationKind};
 
 use super::State;
 
@@ -66,6 +66,14 @@ impl State {
         Ok(match selected_commit {
             Detail::CommitDetail(selected_commit) => self.render_commit_area_commit(_diff_area, selected_commit)?,
             Detail::DiffIndexCommit(diff) | Detail::DiffTreeIndex(diff) => self.render_commit_area_diff(_diff_area, diff)?,
+            Detail::Error(e) => {
+                let diff = &Diff {
+                    files: vec![
+                        (FileModificationKind::Modification, "ERROR".into(), format!("Error: {e:?}")),
+                    ],
+                };
+                self.render_commit_area_diff(_diff_area, diff)?
+            }
         })
     }
 
@@ -203,6 +211,7 @@ impl State {
         let title = match selected_commit {
             Detail::CommitDetail(selected_commit) => format!("Commit {}", selected_commit.id),
             Detail::DiffTreeIndex(_) | Detail::DiffIndexCommit(_) => format!("Diff"),
+            Detail::Error(_) => format!("Error"),
         };
         let block_selected = Block::bordered().title(title);
         frame.render_widget(paragraph.block(block_selected), commit_descr_area);

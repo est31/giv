@@ -36,6 +36,7 @@ pub(crate) enum Detail {
     DiffTreeIndex(Diff),
     DiffIndexCommit(Diff),
     CommitDetail(CommitDetail),
+    Error(anyhow::Error),
 }
 
 pub(crate) enum FileModificationKind {
@@ -148,7 +149,11 @@ impl State {
     }
     pub(crate) fn get_or_refresh_selected_commit(&mut self) -> Result<Option<&Detail>, anyhow::Error> {
         if self.selected_commit_cached.is_none() {
-            let selected_opt = self.get_selected_commit()?;
+            let selected_opt_res = self.get_selected_commit();
+            let selected_opt = match selected_opt_res {
+                Ok(v) => v,
+                Err(e) => Some(Detail::Error(e)),
+            };
             if let Some(selected) = selected_opt {
                 Ok(Some(self.selected_commit_cached.insert(selected)))
             } else {
