@@ -3,15 +3,13 @@ use std::{ops::ControlFlow, time::Duration};
 use anyhow::{Context, anyhow};
 use crossterm::event::KeyCode;
 use gix::Repository;
-use ratatui::{
-    DefaultTerminal, crossterm::event, layout::Rect,
-};
 use model::CommitShallow;
+use ratatui::{DefaultTerminal, crossterm::event, layout::Rect};
 
 use crate::{draw::RenderedDiff, model::Detail};
 
-mod model;
 mod draw;
+mod model;
 
 struct State {
     repo: Repository,
@@ -78,7 +76,7 @@ impl App {
         Ok(())
     }
     fn handle_event(&mut self, event: event::Event) -> ControlFlow<(), ()> {
-        let log_h = self.state.last_log_area.height.saturating_sub(2) / 2;
+        let log_h = self.state.last_log_area.height.saturating_sub(2);
         let diff_h = self.state.last_diff_area.height.saturating_sub(2) / 2;
         match event {
             event::Event::Key(key) => {
@@ -87,42 +85,16 @@ impl App {
                     return ControlFlow::Break(());
                 } else if key.code == KeyCode::Down || key.code == KeyCode::Char('k') {
                     // Scroll down log area
-                    self.state.selection_idx += 1;
-                    self.state.diff_scroll_idx = 0;
-
-                    if !self.state.last_log_area.is_empty() {
-                        // Scroll down if we are at the bottom
-                        let selection_idx = self.state.selection_idx;
-                        if selection_idx >= self.state.commits_scroll_idx + log_h as usize {
-                            self.state.commits_scroll_idx += 1;
-                        }
-                    }
-                    self.state.invalidate_caches();
+                    self.handle_log_scroll_down(1);
                 } else if key.code == KeyCode::Up || key.code == KeyCode::Char('i') {
                     // Scroll up log area
-                    self.state.selection_idx = self.state.selection_idx.saturating_sub(1);
-                    self.state.diff_scroll_idx = 0;
-
-                    if !self.state.last_log_area.is_empty() {
-                        // Scroll up if we are at the top
-                        let selection_idx = self.state.selection_idx;
-                        if selection_idx < self.state.commits_scroll_idx {
-                            self.state.commits_scroll_idx -= 1;
-                        }
-                    }
-                    self.state.invalidate_caches();
+                    self.handle_log_scroll_up(1);
                 } else if key.code == KeyCode::PageDown || key.code == KeyCode::Char('K') {
                     // Scroll down log area alot
-                    self.state.selection_idx += log_h as usize;
-                    self.state.diff_scroll_idx = 0;
-
-                    self.state.commits_scroll_idx += log_h as usize;
+                    self.handle_log_scroll_down(log_h as usize / 2);
                 } else if key.code == KeyCode::PageUp || key.code == KeyCode::Char('I') {
                     // Scroll up log area alot
-                    self.state.selection_idx = self.state.selection_idx.saturating_sub(log_h as usize);
-                    self.state.diff_scroll_idx = 0;
-
-                    self.state.commits_scroll_idx = self.state.commits_scroll_idx.saturating_sub(log_h as usize);
+                    self.handle_log_scroll_up(log_h as usize / 2);
                 } else if key.code == KeyCode::Char('l') {
                     // Scroll down commit area
                     self.state.diff_scroll_idx += 1;
@@ -134,7 +106,8 @@ impl App {
                     self.state.diff_scroll_idx += diff_h as usize;
                 } else if key.code == KeyCode::Char('O') {
                     // Scroll up commit area
-                    self.state.diff_scroll_idx = self.state.diff_scroll_idx.saturating_sub(diff_h as usize);
+                    self.state.diff_scroll_idx =
+                        self.state.diff_scroll_idx.saturating_sub(diff_h as usize);
                 } else if key.code == KeyCode::Char('w') {
                     // Scroll up commit area to prev file
                     if let Some(rendered_diff) = &self.state.last_rendered_diff {
@@ -176,15 +149,36 @@ impl App {
             event::Event::Paste(_) => (),
             event::Event::Resize(_, _) => {
                 self.state.invalidate_caches();
-            },
+            }
         }
         ControlFlow::Continue(())
+    }
+    fn handle_log_scroll_down(&mut self, amount: usize) {
+        let log_h = self.state.last_log_area.height.saturating_sub(2);
+
+        self.state.selection_idx += amount;
+        self.state.diff_scroll_idx = 0;
+
+        if !self.state.last_log_area.is_empty() {
+            // Scroll down if we are at the bottom
+            let selection_idx = self.state.selection_idx;
+            if selection_idx >= self.state.commits_scroll_idx + log_h as usize {
+                self.state.commits_scroll_idx += amount;
+            }
+        }
+        self.state.invalidate_caches();
+    }
+    fn handle_log_scroll_up(&mut self, amount: usize) {
+        self.state.selection_idx = self.state.selection_idx.saturating_sub(amount as usize);
+        self.state.diff_scroll_idx = 0;
+
+        self.state.commits_scroll_idx =
+            self.state.commits_scroll_idx.saturating_sub(amount as usize);
     }
 }
 
 fn main() -> Result<(), anyhow::Error> {
-    color_eyre::install()
-        .map_err(|err| anyhow!("{}", color_eyre::Report::msg(err)))?;
+    color_eyre::install().map_err(|err| anyhow!("{}", color_eyre::Report::msg(err)))?;
     let terminal = ratatui::init();
     let mut app = App::new(terminal)?;
     app.run()?;
