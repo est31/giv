@@ -155,6 +155,15 @@ impl App {
     fn handle_log_select_down(&mut self, amount: usize) {
         let log_h = self.state.last_log_area.height.saturating_sub(2);
 
+        let amount = if let Some(commits) = &self.state.commits_shallow_cached {
+            // Scroll down only as far as the commits permit, i.e. don't support scrolling past
+            // the last commit
+            let new_selection_idx = (commits.len() - 1).min(self.state.selection_idx + amount);
+            new_selection_idx - self.state.selection_idx
+        } else {
+            return;
+        };
+
         self.state.selection_idx += amount;
 
         if !self.state.last_log_area.is_empty() {
