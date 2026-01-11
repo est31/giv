@@ -255,7 +255,7 @@ impl State {
                 files: vec![(
                     FileModificationKind::Deletion,
                     "ERROR".to_owned(),
-                    format!("error: {e}"),
+                    format!("error: {e:?}"),
                 )],
             },
         };
@@ -331,7 +331,7 @@ impl State {
                 Err(e) => Ok((
                     FileModificationKind::Modification,
                     format!("ERR"),
-                    format!("error: {e}"),
+                    format!("error: {e:?}"),
                 )),
             })
             .map(|res| match res {
@@ -339,7 +339,7 @@ impl State {
                 Err(e) => (
                     FileModificationKind::Modification,
                     format!("ERR"),
-                    format!("error: {e}"),
+                    format!("error: {e:?}"),
                 ),
             })
             .collect();
