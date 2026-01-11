@@ -186,8 +186,10 @@ impl App {
             // Scroll dup if we are at the top
             let selection_idx = self.state.selection_idx;
             if selection_idx < self.state.commits_scroll_idx {
-                self.state.commits_scroll_idx =
-                    self.state.commits_scroll_idx.saturating_sub(amount as usize);
+                self.state.commits_scroll_idx = self
+                    .state
+                    .commits_scroll_idx
+                    .saturating_sub(amount as usize);
             }
         }
 
