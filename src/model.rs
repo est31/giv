@@ -1,6 +1,7 @@
 use std::collections::BTreeSet;
 use std::collections::{HashMap, HashSet};
 
+use anyhow::Context;
 use gix::{
     ObjectId,
     actor::SignatureRef,
@@ -287,7 +288,8 @@ impl State {
                     // TODO don't use unwrap here but return dedicated ERR item
                     let worktree = self.repo.worktree().unwrap();
                     let in_worktree =
-                        std::fs::read(worktree.base().join(rela_path.to_string())).unwrap();
+                        std::fs::read(worktree.base().join(rela_path.to_string()))
+                            .context(format!("loading file {rela_path}"))?;
 
                     let obj = self.repo.find_object(entry.id).unwrap();
 
@@ -306,22 +308,30 @@ impl State {
                     )
                     .unwrap();
                     let diff_str_raw = format!("{diff_str_raw}\nworktree to {}", entry.id);
-                    (
+                    Ok::<_, anyhow::Error>((
                         FileModificationKind::Modification,
                         format!("{}", rela_path),
                         diff_str_raw,
-                    )
+                    ))
                 }
-                Ok(gix::status::index_worktree::Item::DirectoryContents { entry, .. }) => (
+                Ok(gix::status::index_worktree::Item::DirectoryContents { entry, .. }) => Ok((
                     FileModificationKind::Addition,
                     format!("{}", entry.rela_path),
                     "New file".to_owned(),
-                ),
-                Ok(gix::status::index_worktree::Item::Rewrite { dirwalk_entry, .. }) => (
+                )),
+                Ok(gix::status::index_worktree::Item::Rewrite { dirwalk_entry, .. }) => Ok((
                     FileModificationKind::Modification,
                     format!("{}", dirwalk_entry.rela_path),
                     "...".to_owned(),
-                ),
+                )),
+                Err(e) => Ok((
+                    FileModificationKind::Modification,
+                    format!("ERR"),
+                    format!("error: {e}"),
+                )),
+            })
+            .map(|res| match res {
+                Ok(v) => v,
                 Err(e) => (
                     FileModificationKind::Modification,
                     format!("ERR"),
