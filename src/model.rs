@@ -421,14 +421,17 @@ impl State {
         return Ok(Diff { files });
     }
     fn compute_diff_commit(&self, commit: gix::Commit<'_>) -> Result<Diff, anyhow::Error> {
-        let Some(parent_id) = commit.parent_ids().next() else {
-            return Ok(Diff { files: Vec::new() });
+        let parent_tree = if let Some(parent_id) = commit.parent_ids().next() {
+            let parent = self.repo.find_commit(parent_id)?;
+            parent.tree()?
+        } else {
+            // No parent for commit, it's a root commit
+            self.repo.empty_tree()
         };
-        let parent = self.repo.find_commit(parent_id)?;
         let diff_options = None;
         let diff_changes =
             self.repo
-                .diff_tree_to_tree(&parent.tree()?, &commit.tree()?, diff_options)?;
+                .diff_tree_to_tree(&parent_tree, &commit.tree()?, diff_options)?;
         let mut files = diff_changes
             .iter()
             .map(|chg| {
