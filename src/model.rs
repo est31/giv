@@ -16,6 +16,7 @@ use crate::State;
 pub(crate) struct CommitShallow {
     pub(crate) id: ShallowId,
     pub(crate) commit: String,
+    pub(crate) refs: Vec<String>,
     pub(crate) signature: Signature,
 }
 
@@ -93,6 +94,7 @@ impl State {
                 res.push(CommitShallow {
                     id: ShallowId::Worktree,
                     commit: format!("Worktree changes, not in index"),
+                    refs: Vec::new(),
                     signature: Signature {
                         author_name: String::new(),
                         author_email: String::new(),
@@ -104,6 +106,7 @@ impl State {
                 res.push(CommitShallow {
                     id: ShallowId::Index,
                     commit: format!("Index changes, not in a commit"),
+                    refs: Vec::new(),
                     signature: Signature {
                         author_name: String::new(),
                         author_email: String::new(),
@@ -134,9 +137,19 @@ impl State {
                 }
                 let msg = commit.message()?;
                 let title = msg.title.to_string();
+                let refs_id = self.id_to_refs_map_cached.get(&commit.id);
+                let refs = if let Some(refs_id) = refs_id {
+                    refs_id
+                        .iter()
+                        .map(|ref_| format!("{}", ref_.name.as_bstr()).trim().to_owned())
+                        .collect()
+                } else {
+                    Vec::new()
+                };
                 res.push(CommitShallow {
                     id: ShallowId::CommitId(commit.id, commit.short_id()?),
                     commit: format!("{}", title.trim()),
+                    refs,
                     signature: self.make_signature(commit.author()?)?,
                 });
             }

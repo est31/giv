@@ -1,4 +1,4 @@
-use std::{ops::ControlFlow, time::Duration, collections::HashMap};
+use std::{collections::HashMap, ops::ControlFlow, time::Duration};
 
 use anyhow::{Context, anyhow};
 use crossterm::event::KeyCode;
