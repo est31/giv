@@ -10,6 +10,19 @@ The tool builds on [gitoxide](https://github.com/GitoxideLabs/gitoxide) as well 
 cargo install git-viewer
 ```
 
+Alternatively, to get the best and latest you can do:
+
+```
+cargo install --git https://github.com/est31/giv
+```
+
+## Controls
+
+- `ik, ↑↓, IK, PgUp, PgDown`: select different commit from git log area
+- `ol, OL`: scroll diff area via fixed offsets
+- `ws`: scroll diff area to next/previous file
+- `q, esc`: exit
+
 ## Goals
 
 - UI that allows inspecting git changes
@@ -22,13 +35,10 @@ cargo install git-viewer
 
 - search commit messages
 - search in diff of commit
-- show full commit graph, not just first parent
-- color commit view
+- maybe some graph-like rendering with lines and stuff
 - CLI args similar to gitk: both for path as well as commit
-- show tags/branches
+- show tags/branches without the prefix
 - self-documenting controls
-- more isolated error domain for submodule updates and don't error out
-- don't support scrolling past first commit in listh
 
 ## Motivation
 
