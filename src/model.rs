@@ -1,4 +1,5 @@
 use std::collections::BTreeSet;
+use std::collections::{HashMap, HashSet};
 
 use gix::{
     ObjectId,
@@ -8,7 +9,6 @@ use gix::{
         unified_diff::{ConsumeBinaryHunk, ContextSize},
     },
     hash::Prefix,
-    hashtable::hash_set::HashSet,
 };
 
 use crate::State;
@@ -490,6 +490,40 @@ impl State {
             .collect::<Result<Vec<_>, anyhow::Error>>()?;
         files.sort_by_cached_key(|f| f.1.clone());
         Ok(Diff { files })
+    }
+    pub(crate) fn compute_id_to_refs_map(&mut self) {
+        let refs_res = self.repo.refs.iter();
+        let refs = match refs_res {
+            Ok(refs) => refs,
+            Err(_err) => {
+                // TODO do something with the error here,
+                // we can't print it directly due to being a TUI
+                return;
+            }
+        };
+        let refs = match refs.all() {
+            Ok(refs) => refs,
+            Err(_err) => {
+                // TODO do something with the error here,
+                // we can't print it directly due to being a TUI
+                return;
+            }
+        };
+        let mut res = HashMap::new();
+        for ref_res in refs {
+            let ref_ = match ref_res {
+                Ok(refs) => refs,
+                Err(_err) => {
+                    // TODO do something with the error here,
+                    // we can't print it directly due to being a TUI
+                    return;
+                }
+            };
+            // TODO do peel_to_id here
+            let id = ref_.target.clone().into_id();
+            res.entry(id).or_insert_with(Vec::new).push(ref_);
+        }
+        self.id_to_refs_map_cached = res;
     }
     pub(crate) fn invalidate_caches(&mut self) {
         self.commits_shallow_cached = None;

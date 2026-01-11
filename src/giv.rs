@@ -1,8 +1,8 @@
-use std::{ops::ControlFlow, time::Duration};
+use std::{ops::ControlFlow, time::Duration, collections::HashMap};
 
 use anyhow::{Context, anyhow};
 use crossterm::event::KeyCode;
-use gix::Repository;
+use gix::{ObjectId, Repository, refs::Reference};
 use model::CommitShallow;
 use ratatui::{DefaultTerminal, crossterm::event, layout::Rect};
 
@@ -20,7 +20,9 @@ struct State {
     commits_shallow_cached: Option<Vec<CommitShallow>>,
     selected_commit_cached: Option<Detail>,
     worktree_index_changed_cached: Option<(bool, bool)>,
+    id_to_refs_map_cached: HashMap<ObjectId, Vec<Reference>>,
 
+    // UI states
     selection_idx: usize,
     diff_scroll_idx: usize,
     commits_scroll_idx: usize,
@@ -43,6 +45,8 @@ impl State {
             commits_shallow_cached: None,
             selected_commit_cached: None,
             worktree_index_changed_cached: None,
+            id_to_refs_map_cached: HashMap::new(),
+
             selection_idx: 0,
             diff_scroll_idx: 0,
             commits_scroll_idx: 0,
@@ -65,6 +69,7 @@ impl App {
         Ok(app)
     }
     fn run(&mut self) -> Result<(), anyhow::Error> {
+        self.state.compute_id_to_refs_map();
         loop {
             self.terminal.try_draw(|frame| self.state.draw(frame))?;
             if event::poll(POLL_INTERVAL).context("failed to poll for events")? {
