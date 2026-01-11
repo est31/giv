@@ -533,8 +533,9 @@ impl State {
                 }
             };
             // TODO do peel_to_id here
-            let id = ref_.target.clone().into_id();
-            res.entry(id).or_insert_with(Vec::new).push(ref_);
+            let tgt = ref_.target.clone();
+            let Some(id) = tgt.try_id() else { continue };
+            res.entry(id.into()).or_insert_with(Vec::new).push(ref_);
         }
         self.id_to_refs_map_cached = res;
     }
