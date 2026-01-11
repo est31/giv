@@ -285,13 +285,17 @@ impl State {
                 Ok(gix::status::index_worktree::Item::Modification {
                     entry, rela_path, ..
                 }) => {
-                    // TODO don't use unwrap here but return dedicated ERR item
-                    let worktree = self.repo.worktree().unwrap();
-                    let in_worktree =
-                        std::fs::read(worktree.base().join(rela_path.to_string()))
-                            .context(format!("loading file {rela_path}"))?;
+                    let worktree = self
+                        .repo
+                        .worktree()
+                        .ok_or_else(|| anyhow::anyhow!("Repo has no worktree"))?;
+                    let in_worktree = std::fs::read(worktree.base().join(rela_path.to_string()))
+                        .context(format!("loading file {rela_path}"))?;
 
-                    let obj = self.repo.find_object(entry.id).unwrap();
+                    let obj = self
+                        .repo
+                        .find_object(entry.id)
+                        .context(format!("finding object {}", entry.id))?;
 
                     let interner = gix::diff::blob::intern::InternedInput::new(
                         obj.data.as_slice(),

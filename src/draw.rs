@@ -295,7 +295,8 @@ impl State {
             };
             if !cmt.refs.is_empty() {
                 let refs_str = cmt.refs.join(", ");
-                commit_line.push_span(Span::from(format!(" ({refs_str})")).style(Style::default().red()));
+                commit_line
+                    .push_span(Span::from(format!(" ({refs_str})")).style(Style::default().red()));
             }
             if idx == selection_idx {
                 lines.push(commit_line.style(selected_st));
