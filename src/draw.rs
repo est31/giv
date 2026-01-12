@@ -233,7 +233,7 @@ impl State {
             .iter()
             .map(|l| l.0.clone())
             .collect::<Vec<_>>();
-        let commit_descr_text =
+        let mut commit_descr_text =
             rendered_diff
                 .texts
                 .into_iter()
@@ -242,12 +242,19 @@ impl State {
                     t_a
                 });
 
-        let mut scrollbar_state = ScrollbarState::new(commit_descr_text.lines.len());
+        let max_scroll = commit_descr_text.lines.len();
+
+        let mut scrollbar_state = ScrollbarState::new(max_scroll);
         scrollbar_state = scrollbar_state.position(diff_scroll_idx);
 
+        let diff_scroll_idx = diff_scroll_idx.min(max_scroll);
+
+        let scrolled_lines = commit_descr_text.lines.split_off(diff_scroll_idx);
+
+        commit_descr_text.lines = scrolled_lines;
+
         let paragraph = Paragraph::new(commit_descr_text)
-            .wrap(Wrap { trim: false })
-            .scroll((diff_scroll_idx as u16, 0));
+            .wrap(Wrap { trim: false });
 
         let scrollbar_area = commit_descr_area.inner(ratatui::layout::Margin {
             vertical: 0,
