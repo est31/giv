@@ -1,10 +1,11 @@
 use ratatui::{
     Frame,
-    layout::{Constraint, Layout, Rect},
+    layout::{Constraint, Flex, Layout, Rect},
     style::{Style, Stylize},
     text::{Line, Span, Text},
     widgets::{Block, Paragraph, Scrollbar, ScrollbarState, Wrap},
 };
+use unicode_width::UnicodeWidthStr;
 
 use crate::model::{CommitDetail, Detail, Diff, FileModificationKind};
 
@@ -30,9 +31,17 @@ impl State {
 
         self.last_log_area = log_area;
         self.last_diff_area = diff_area;
+        self.all_area = area;
 
         self.draw_log_area(frame, log_area)?;
         self.draw_selected_commit_area(frame, diff_area)?;
+
+        if self.show_tips {
+            self.render_tips(frame, r#"[i]/[k], [↑]/[↓], [I]/[K], [PgUp]/[PgDown]: select different commit from git log area
+[o]/[l], [O]/[L]: scroll diff area via fixed offsets
+[w]/[s]: scroll diff area to next/previous file
+[q]/[Esc]: exit"#);
+        }
 
         Ok(())
     }
@@ -253,8 +262,7 @@ impl State {
 
         commit_descr_text.lines = scrolled_lines;
 
-        let paragraph = Paragraph::new(commit_descr_text)
-            .wrap(Wrap { trim: false });
+        let paragraph = Paragraph::new(commit_descr_text).wrap(Wrap { trim: false });
 
         let scrollbar_area = commit_descr_area.inner(ratatui::layout::Margin {
             vertical: 0,
@@ -316,6 +324,39 @@ impl State {
             }
         }
         Ok((lines, authors, times))
+    }
+    fn render_tips(&self, frame: &mut Frame, tips: &str) {
+        let mut text = vec![];
+        let mut max_width = 0;
+
+        for tip in tips.lines() {
+            text.push(Line::raw(tip));
+            let width = UnicodeWidthStr::width(tip);
+            if width > max_width {
+                max_width = width;
+            }
+        }
+
+        text.push(Line::raw(""));
+        text.push(Line::raw("Press [c]/[?]/[q]/[Esc] to continue."));
+
+        let block = Block::bordered().title("tips");
+
+        // '2' is border length
+        let vertical =
+            Layout::vertical([Constraint::Length(text.len() as u16 + 2)]).flex(Flex::Center);
+
+        // '10' looks beautiful
+        let horizontal =
+            Layout::horizontal([Constraint::Length(max_width as u16 + 10)]).flex(Flex::Center);
+        let [area] = vertical.areas(self.all_area);
+        let [area] = horizontal.areas(area);
+
+        let inner = block.inner(area);
+        frame.render_widget(ratatui::widgets::Clear, area); //this clears out the background
+        frame.render_widget(block, area);
+
+        frame.render_widget(Text::from(text), inner);
     }
 }
 

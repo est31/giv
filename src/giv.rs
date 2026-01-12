@@ -30,6 +30,8 @@ struct State {
     last_rendered_diff: Option<RenderedDiff>,
     last_log_area: Rect,
     last_diff_area: Rect,
+    all_area: Rect,
+    show_tips: bool,
 }
 
 struct App {
@@ -53,6 +55,8 @@ impl State {
             last_rendered_diff: None,
             last_log_area: Rect::new(0, 0, 0, 0),
             last_diff_area: Rect::new(0, 0, 0, 0),
+            all_area: Rect::new(0, 0, 0, 0),
+            show_tips: false,
         };
         Ok(state)
     }
@@ -88,6 +92,10 @@ impl App {
         match event {
             event::Event::Key(key) => {
                 if key.code == KeyCode::Char('q') || key.code == KeyCode::Esc {
+                    if self.state.show_tips {
+                        self.state.show_tips = false;
+                        return ControlFlow::Continue(());
+                    }
                     // Quit the application using q
                     return ControlFlow::Break(());
                 } else if key.code == KeyCode::Down || key.code == KeyCode::Char('k') {
@@ -147,6 +155,10 @@ impl App {
                             ctr += len;
                         }
                     }
+                } else if key.code == KeyCode::Char('?') {
+                    self.state.show_tips = !self.state.show_tips;
+                } else if key.code == KeyCode::Char('c') && self.state.show_tips {
+                    self.state.show_tips = false;
                 }
             }
             event::Event::FocusGained => (),
