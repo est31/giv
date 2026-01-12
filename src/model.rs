@@ -280,7 +280,7 @@ impl State {
                 opts.dirwalk_options = None;
             })
             .into_index_worktree_iter(Vec::new())?;
-        let files = iter
+        let mut files = iter
             .map(|v| match v {
                 Ok(gix::status::index_worktree::Item::Modification {
                     entry, rela_path, ..
@@ -342,7 +342,8 @@ impl State {
                     format!("error: {e:?}"),
                 ),
             })
-            .collect();
+            .collect::<Vec<_>>();
+        files.sort_by_cached_key(|(_, path, _diff)| path.clone());
         return Ok(Diff { files });
     }
     fn compute_diff_index_to_commit(&self) -> Result<Diff, anyhow::Error> {
@@ -418,6 +419,7 @@ impl State {
             };
             files.push(file);
         }
+        files.sort_by_cached_key(|(_, path, _diff)| path.clone());
         return Ok(Diff { files });
     }
     fn compute_diff_commit(&self, commit: gix::Commit<'_>) -> Result<Diff, anyhow::Error> {
