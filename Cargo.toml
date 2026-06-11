@@ -7,7 +7,7 @@ description = "Pure Rust gitk clone for the terminal"
 repository = "https://github.com/est31/giv"
 homepage = "https://github.com/est31/giv"
 readme = "README.md"
-rust-version = "1.88"
+rust-version = "1.96"
 
 [[bin]]
 name = "giv"
