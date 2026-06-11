@@ -555,7 +555,7 @@ impl State {
             let tgt = ref_.target.clone();
             let Some(id) = tgt.try_id() else { continue };
             if let Ok(tag) = self.repo.find_tag(id) {
-                let decoded = tag.decode().unwrap();
+                let Ok(decoded) = tag.decode() else { continue };
                 let tgt = decoded.target();
                 res.entry(tgt).or_insert_with(Vec::new).push(ref_);
             } else {
