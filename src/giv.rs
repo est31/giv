@@ -38,9 +38,9 @@ struct App {
 }
 
 impl State {
-    fn new() -> Result<State, anyhow::Error> {
+    fn with_repo(repo: Repository) -> State {
         let state = State {
-            repo: gix::open(".")?,
+            repo,
             wanted_commit_list_count: 10,
             commits_shallow_cached: None,
             selected_commit_cached: None,
@@ -54,19 +54,24 @@ impl State {
             last_log_area: Rect::new(0, 0, 0, 0),
             last_diff_area: Rect::new(0, 0, 0, 0),
         };
-        Ok(state)
+        state
     }
+}
+
+fn open_repo() -> Result<gix::Repository, anyhow::Error> {
+    let repo = gix::open(".").context("opening repo")?;
+    Ok(repo)
 }
 
 const POLL_INTERVAL: Duration = Duration::from_millis(100);
 
 impl App {
-    fn new(terminal: DefaultTerminal) -> Result<App, anyhow::Error> {
+    fn new(repo: Repository, terminal: DefaultTerminal) -> App {
         let app = App {
-            state: State::new()?,
+            state: State::with_repo(repo),
             terminal,
         };
-        Ok(app)
+        app
     }
     fn run(&mut self) -> Result<(), anyhow::Error> {
         self.state.compute_id_to_refs_map();
@@ -211,8 +216,9 @@ impl App {
 
 fn main() -> Result<(), anyhow::Error> {
     color_eyre::install().map_err(|err| anyhow!("{}", color_eyre::Report::msg(err)))?;
+    let repo = open_repo()?;
     let terminal = ratatui::init();
-    let mut app = App::new(terminal)?;
+    let mut app = App::new(repo, terminal);
     app.run()?;
     ratatui::restore();
     Ok(())
