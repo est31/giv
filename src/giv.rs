@@ -59,7 +59,14 @@ impl State {
 }
 
 fn open_repo() -> Result<gix::Repository, anyhow::Error> {
-    let repo = gix::open(".").context("opening repo")?;
+    let default_path = std::path::PathBuf::from(".");
+    let (path, _trust) = gix::discover::upwards(&default_path)?;
+    let path = match path {
+        gix::discover::repository::Path::LinkedWorkTree { git_dir, .. } => git_dir,
+        gix::discover::repository::Path::WorkTree(path) => path,
+        gix::discover::repository::Path::Repository(path) => path,
+    };
+    let repo = gix::open(path).context("opening repo")?;
     Ok(repo)
 }
 
