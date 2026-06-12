@@ -253,8 +253,7 @@ impl State {
 
         commit_descr_text.lines = scrolled_lines;
 
-        let paragraph = Paragraph::new(commit_descr_text)
-            .wrap(Wrap { trim: false });
+        let paragraph = Paragraph::new(commit_descr_text).wrap(Wrap { trim: false });
 
         let scrollbar_area = commit_descr_area.inner(ratatui::layout::Margin {
             vertical: 0,

@@ -297,20 +297,24 @@ impl State {
                         .find_object(entry.id)
                         .context(format!("finding object {}", entry.id))?;
 
-                    let interner = gix::diff::blob::intern::InternedInput::new(
+                    let interner = gix::diff::blob::InternedInput::new(
                         obj.data.as_slice(),
                         in_worktree.as_slice(),
                     );
-                    let diff_str_raw = gix::diff::blob::diff(
+
+                    let diff = gix::diff::blob::diff_with_slider_heuristics(
                         gix::diff::blob::Algorithm::Myers,
                         &interner,
-                        UnifiedDiff::new(
-                            &interner,
-                            ConsumeBinaryHunk::new(String::new(), "\n"),
-                            ContextSize::symmetrical(3),
-                        ),
+                    );
+
+                    let diff_str_raw = UnifiedDiff::new(
+                        &diff,
+                        &interner,
+                        ConsumeBinaryHunk::new(String::new(), "\n"),
+                        ContextSize::symmetrical(3),
                     )
-                    .unwrap();
+                    .consume()?;
+
                     let diff_str_raw = format!("{diff_str_raw}\nworktree to {}", entry.id);
                     Ok::<_, anyhow::Error>((
                         FileModificationKind::Modification,
@@ -396,20 +400,23 @@ impl State {
                     let prev_obj = self.repo.find_object(&*previous_id.to_owned()).unwrap();
                     let now_obj = self.repo.find_object(&*id.to_owned()).unwrap();
 
-                    let interner = gix::diff::blob::intern::InternedInput::new(
+                    let interner = gix::diff::blob::InternedInput::new(
                         prev_obj.data.as_slice(),
                         now_obj.data.as_slice(),
                     );
-                    let diff_str_raw = gix::diff::blob::diff(
+
+                    let diff = gix::diff::blob::diff_with_slider_heuristics(
                         gix::diff::blob::Algorithm::Myers,
                         &interner,
-                        UnifiedDiff::new(
-                            &interner,
-                            ConsumeBinaryHunk::new(String::new(), "\n"),
-                            ContextSize::symmetrical(3),
-                        ),
+                    );
+
+                    let diff_str_raw = UnifiedDiff::new(
+                        &diff,
+                        &interner,
+                        ConsumeBinaryHunk::new(String::new(), "\n"),
+                        ContextSize::symmetrical(3),
                     )
-                    .unwrap();
+                    .consume()?;
                     (
                         FileModificationKind::Modification,
                         format!("{location}"),
@@ -492,26 +499,29 @@ impl State {
                     let interner = if let Some(prev_id) = prev_id_opt {
                         let prev_blob_ref = prev_blob.insert(self.repo.find_blob(prev_id)?);
 
-                        gix::diff::blob::intern::InternedInput::new(
+                        gix::diff::blob::InternedInput::new(
                             prev_blob_ref.data.as_slice(),
                             now_blob.data.as_slice(),
                         )
                     } else {
-                        gix::diff::blob::intern::InternedInput::new(
+                        gix::diff::blob::InternedInput::new(
                             b"".as_slice(),
                             now_blob.data.as_slice(),
                         )
                     };
 
-                    let diff_str_raw = gix::diff::blob::diff(
+                    let diff = gix::diff::blob::diff_with_slider_heuristics(
                         gix::diff::blob::Algorithm::Myers,
                         &interner,
-                        UnifiedDiff::new(
-                            &interner,
-                            ConsumeBinaryHunk::new(String::new(), "\n"),
-                            ContextSize::symmetrical(3),
-                        ),
-                    )?;
+                    );
+
+                    let diff_str_raw = UnifiedDiff::new(
+                        &diff,
+                        &interner,
+                        ConsumeBinaryHunk::new(String::new(), "\n"),
+                        ContextSize::symmetrical(3),
+                    )
+                    .consume()?;
                     diff_str_raw
                 } else {
                     String::new()
